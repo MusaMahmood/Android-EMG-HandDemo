@@ -2,6 +2,7 @@ package com.mahmoodms.bluetooth.emghandcontrol;
 
 import android.app.ActionBar;
 import android.app.Activity;
+import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCharacteristic;
@@ -9,6 +10,7 @@ import android.bluetooth.BluetoothGattDescriptor;
 import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
+import android.bluetooth.BluetoothSocket;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
@@ -18,6 +20,7 @@ import android.graphics.drawable.ColorDrawable;
 import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.AsyncTask;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
@@ -42,9 +45,14 @@ import com.opencsv.CSVWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.lang.reflect.Method;
+import java.nio.ByteBuffer;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.UUID;
 
 /**
  * Created by mahmoodms on 5/31/2016.
@@ -56,8 +64,6 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
     private GraphAdapter mGraphAdapterCh2;
     private GraphAdapter mGraphAdapterCh3;
     public XYPlotAdapter mXYPlotAdapterCh1;
-//    public XYPlotAdapter mXYPlotAdapterCh2;
-//    public XYPlotAdapter mXYPlotAdapterCh3;
     public static Redrawer redrawer;
     private boolean plotImplicitXVals = false;
     private final static String TAG = DeviceControlActivity.class.getSimpleName();
@@ -76,15 +82,13 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
     private BluetoothGattService mLedService = null;
     private int mWheelchairGattIndex;
 
-    //    private boolean mEOGConnected = false;
     private boolean mEEGConnected = false;
-//    private boolean mEEGConnected_2ch = false;
 
     //Layout - TextViews and Buttons
-    private TextView mBatteryLevel;
+//    private TextView mBatteryLevel;
     private TextView mDataRate;
     private TextView mSSVEPClassTextView;
-    private TextView mYfitTextView;
+//    private TextView mYfitTextView;
     private Button mExportButton;
     private long mLastTime;
     private long mCurrentTime;
@@ -113,6 +117,22 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
     //Play Sound:
     MediaPlayer mMediaBeep;
 
+    //Bluetooth Classic - For Robotic Hand
+    Handler mHandler;
+    final int RECIEVE_MESSAGE = 1;        // Status  for Handler
+    private BluetoothAdapter btAdapter = null;
+    private BluetoothSocket btSocket = null;
+    private StringBuilder sb = new StringBuilder();
+    private static int flag = 0;
+
+    private ConnectedThread mConnectedThread;
+
+    // SPP UUID service
+    private static final UUID MY_UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
+
+    // MAC-address of Bluetooth module (you must edit this line)
+    private static String address = "30:14:12:17:21:88";
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -140,15 +160,39 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         //Set up TextViews
         mExportButton = (Button) findViewById(R.id.button_export);
-        mBatteryLevel = (TextView) findViewById(R.id.batteryText);
+//        mBatteryLevel = (TextView) findViewById(R.id.batteryText);
         mDataRate = (TextView) findViewById(R.id.dataRate);
         mDataRate.setText("...");
-        mYfitTextView = (TextView) findViewById(R.id.textViewYfit);
+//        mYfitTextView = (TextView) findViewById(R.id.textViewYfit);
         //Initialize Bluetooth
         ActionBar ab = getActionBar();
         ab.setTitle(mDeviceName);
         ab.setSubtitle(mDeviceAddress);
         initializeBluetoothArray();
+        //Bluetooth Classic Stuff:
+
+        mHandler = new Handler() {
+            public void handleMessage(android.os.Message msg) {
+                switch (msg.what) {
+                    case RECIEVE_MESSAGE:
+                        byte[] readBuf = (byte[]) msg.obj;
+                        String strIncom = new String(readBuf, 0, msg.arg1);
+                        sb.append(strIncom);
+                        int endOfLineIndex = sb.indexOf("\r\n");
+                        if (endOfLineIndex > 0) {
+                            String sbprint = sb.substring(0, endOfLineIndex);
+                            sb.delete(0, sb.length());
+                            flag++;
+                            Log.i(TAG,"flag: "+String.valueOf(flag)+"Sbprint: "+sbprint);
+                        }
+                        break;
+                }
+            }
+        };
+
+        btAdapter = BluetoothAdapter.getDefaultAdapter();       // get Bluetooth adapter
+        checkBTState();
+
         // Initialize our XYPlot reference:
         mGraphAdapterCh1 = new GraphAdapter(1000, "EEG Data Ch 1", false, false, Color.BLUE); //Color.parseColor("#19B52C") also, RED, BLUE, etc.
         mGraphAdapterCh2 = new GraphAdapter(1000, "EEG Data Ch 2", false, false, Color.RED); //Color.parseColor("#19B52C") also, RED, BLUE, etc.
@@ -163,12 +207,8 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
         if (plotImplicitXVals) mGraphAdapterCh1.series.useImplicitXVals();
         if (filterData) {
             mXYPlotAdapterCh1.filterData();
-//            mXYPlotAdapterCh2.filterData();
-//            mXYPlotAdapterCh3.filterData();
         }
         mXYPlotAdapterCh1 = new XYPlotAdapter(findViewById(R.id.emgCh1), plotImplicitXVals, 1000);
-//        mXYPlotAdapterCh2 = new XYPlotAdapter(findViewById(R.id.emgCh2), plotImplicitXVals, 1000);
-//        mXYPlotAdapterCh3 = new XYPlotAdapter(findViewById(R.id.emgCh3), plotImplicitXVals, 1000);
         mXYPlotAdapterCh1.xyPlot.addSeries(mGraphAdapterCh1.series, mGraphAdapterCh1.lineAndPointFormatter);
         mXYPlotAdapterCh1.xyPlot.addSeries(mGraphAdapterCh2.series, mGraphAdapterCh2.lineAndPointFormatter);
         mXYPlotAdapterCh1.xyPlot.addSeries(mGraphAdapterCh3.series, mGraphAdapterCh3.lineAndPointFormatter);
@@ -196,98 +236,7 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
         });
         mLastTime = System.currentTimeMillis();
         mClassTime = System.currentTimeMillis();
-//        Button upButton = (Button) findViewById(R.id.buttonUp);
-//        Button downButton = (Button) findViewById(R.id.buttonDown);
-//        Button leftButton = (Button) findViewById(R.id.buttonLeft);
-//        Button rightButton = (Button) findViewById(R.id.buttonRight);
-//        Button centerButton = (Button) findViewById(R.id.buttonMiddle);
-//        Button blinkButton = (Button) findViewById(R.id.buttonSB);
-//        Button doubleBlinkButton = (Button) findViewById(R.id.buttonDB);
         mSSVEPClassTextView = (TextView) findViewById(R.id.eegClassTextView);
-        /*upButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                if (mConnected) {
-                    byte[] bytes = new byte[1];
-                    bytes[0] = (byte) 0x01;
-                    if (mLedService != null)
-                        mBluetoothLe.writeCharacteristic(mBluetoothGattArray[mWheelchairGattIndex], mLedService.getCharacteristic(AppConstant.CHAR_WHEELCHAIR_CONTROL), bytes);
-                }
-                mEMGClass = 1;
-                mLastButtonPress = 1;
-                mClassTime = System.currentTimeMillis();
-            }
-        });
-        downButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                if (mConnected) {
-                    byte[] bytes = new byte[1];
-                    bytes[0] = (byte) 0xFF;
-                    if (mLedService != null)
-                        mBluetoothLe.writeCharacteristic(mBluetoothGattArray[mWheelchairGattIndex], mLedService.getCharacteristic(AppConstant.CHAR_WHEELCHAIR_CONTROL), bytes);
-                }
-                mEMGClass = 4;
-                mLastButtonPress = 4;
-                mClassTime = System.currentTimeMillis();
-            }
-        });
-        leftButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                if (mConnected) {
-                    byte[] bytes = new byte[1];
-                    bytes[0] = (byte) 0x0F;
-                    if (mLedService != null)
-                        mBluetoothLe.writeCharacteristic(mBluetoothGattArray[mWheelchairGattIndex], mLedService.getCharacteristic(AppConstant.CHAR_WHEELCHAIR_CONTROL), bytes);
-                }
-                mEMGClass = 3;
-                mLastButtonPress = 3;
-                mClassTime = System.currentTimeMillis();
-            }
-        });
-        rightButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                if (mConnected) {
-                    byte[] bytes = new byte[1];
-                    bytes[0] = (byte) 0xF0;
-                    if (mLedService != null)
-                        mBluetoothLe.writeCharacteristic(mBluetoothGattArray[mWheelchairGattIndex], mLedService.getCharacteristic(AppConstant.CHAR_WHEELCHAIR_CONTROL), bytes);
-                }
-                mEMGClass = 2;
-                mLastButtonPress = 2;
-                mClassTime = System.currentTimeMillis();
-            }
-        });
-        centerButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                if (mConnected) {
-                    byte[] bytes = new byte[1];
-                    bytes[0] = (byte) 0x00;
-                    if (mLedService != null) {
-                        mBluetoothLe.writeCharacteristic(mBluetoothGattArray[mWheelchairGattIndex], mLedService.getCharacteristic(AppConstant.CHAR_WHEELCHAIR_CONTROL), bytes);
-                    }
-                }
-                mEMGClass = 0;
-                mClassTime = System.currentTimeMillis();
-            }
-        });
-        blinkButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                mEMGClass = 1;
-                mClassTime = System.currentTimeMillis();
-            }
-        });
-        doubleBlinkButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                mEMGClass = 2;
-                mClassTime = System.currentTimeMillis();
-            }
-        });*/
         ToggleButton ch1 = (ToggleButton) findViewById(R.id.toggleButtonCh1);
         ch1.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
@@ -309,7 +258,67 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
                 mGraphAdapterCh3.setPlotData(b);
             }
         });
+        Button handConnectButton = (Button) findViewById(R.id.buttonHandControl);
+        handConnectButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                connectToClassicBTHand();
+            }
+        });
+        Button b1 = (Button) findViewById(R.id.b1);
+        Button b2 = (Button) findViewById(R.id.b2);
+        b1.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                mConnectedThread.write(1);
+            }
+        });
+        b2.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                mConnectedThread.write(2);
+            }
+        });
         mMediaBeep = MediaPlayer.create(this, R.raw.beep_01a);
+    }
+
+    public void connectToClassicBTHand() {
+        BluetoothDevice device = btAdapter.getRemoteDevice(address);
+        try {
+            btSocket = createBluetoothSocket(device);
+        } catch (IOException e) {
+            Log.e(TAG, "socketCreate fail"+e.getMessage());
+        }
+        btAdapter.cancelDiscovery();
+        Log.d(TAG, "...Connecting...");
+        try {
+            btSocket.connect();
+            Log.d(TAG, "....Connection ok...");
+        } catch (IOException e) {
+            try {
+                btSocket.close();
+            } catch (IOException e2) {
+                Log.e(TAG, "In onResume() and unable to close socket during connection failure" + e2.getMessage() + ".");
+            }
+        }
+
+        // Create a data stream so we can talk to server.
+        Log.d(TAG, "...Create Socket...");
+
+        mConnectedThread = new ConnectedThread(btSocket);
+        mConnectedThread.start();
+    }
+
+    private BluetoothSocket createBluetoothSocket(BluetoothDevice device) throws IOException {
+        if(Build.VERSION.SDK_INT >= 10){
+            try {
+                final Method m = device.getClass().getMethod("createInsecureRfcommSocketToServiceRecord", new Class[] { UUID.class });
+                return (BluetoothSocket) m.invoke(device, MY_UUID);
+            } catch (Exception e) {
+                Log.e(TAG, "Could not create Insecure RFComm Connection",e);
+            }
+        }
+        return  device.createRfcommSocketToServiceRecord(MY_UUID);
     }
 
     public String getTimeStamp() {
@@ -433,6 +442,11 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
         }
         stopMonitoringRssiValue();
         super.onDestroy();
+        try {
+            btSocket.close();
+        } catch (IOException e2) {
+            Log.e(TAG, "In onPause() and failed to close socket." + e2.getMessage() + ".");
+        }
     }
 
     private void disconnectAllBLE() {
@@ -559,7 +573,7 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
         if (status == BluetoothGatt.GATT_SUCCESS) {
             if (AppConstant.CHAR_BATTERY_LEVEL.equals(characteristic.getUuid())) {
                 batteryLevel = characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT8, 0);
-                updateBatteryStatus(batteryLevel, batteryLevel + " %");
+//                updateBatteryStatus(batteryLevel, batteryLevel + " %");
                 Log.i(TAG, "Battery Level :: " + batteryLevel);
             }
         } else {
@@ -718,7 +732,7 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
             runOnUiThread(new Runnable() {
                 @Override
                 public void run() {
-                    mYfitTextView.setText(s);
+//                    mYfitTextView.setText(s);
                 }
             });
 //            executeWheelchairCommand((int)mClassifiedSSVEPClass);
@@ -959,22 +973,22 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
         });
     }
 
-    private void updateBatteryStatus(final int percent, final String status) {
-        runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                if (percent <= batteryWarning) {
-                    mBatteryLevel.setTextColor(Color.RED);
-                    mBatteryLevel.setTypeface(null, Typeface.BOLD);
-                    Toast.makeText(getApplicationContext(), "Charge Battery, Battery Low " + status, Toast.LENGTH_SHORT).show();
-                } else {
-                    mBatteryLevel.setTextColor(Color.GREEN);
-                    mBatteryLevel.setTypeface(null, Typeface.BOLD);
-                }
-                mBatteryLevel.setText(status);
-            }
-        });
-    }
+//    private void updateBatteryStatus(final int percent, final String status) {
+//        runOnUiThread(new Runnable() {
+//            @Override
+//            public void run() {
+//                if (percent <= batteryWarning) {
+//                    mBatteryLevel.setTextColor(Color.RED);
+//                    mBatteryLevel.setTypeface(null, Typeface.BOLD);
+//                    Toast.makeText(getApplicationContext(), "Charge Battery, Battery Low " + status, Toast.LENGTH_SHORT).show();
+//                } else {
+//                    mBatteryLevel.setTextColor(Color.GREEN);
+//                    mBatteryLevel.setTypeface(null, Typeface.BOLD);
+//                }
+//                mBatteryLevel.setText(status);
+//            }
+//        });
+//    }
 
     private void uiRssiUpdate(final int rssi) {
         runOnUiThread(new Runnable() {
@@ -993,6 +1007,79 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
                 }
             }
         });
+    }
+
+    private void checkBTState() {
+        // Check for Bluetooth support and then check to make sure it is turned on
+        // Emulator doesn't support Bluetooth and will return null
+        if(btAdapter==null) {
+            Log.e(TAG,"Fatal Error: "+"Bluetooth not support");
+        } else {
+            if (btAdapter.isEnabled()) {
+                Log.d(TAG, "...Bluetooth ON...");
+            } else {
+                //Prompt user to turn on Bluetooth
+                Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+                startActivityForResult(enableBtIntent, 1);
+            }
+        }
+    }
+
+    private class ConnectedThread extends Thread {
+        private final InputStream mmInStream;
+        private final OutputStream mmOutStream;
+
+        public ConnectedThread(BluetoothSocket socket) {
+            InputStream tmpIn = null;
+            OutputStream tmpOut = null;
+
+            // Get the input and output streams, using temp objects because
+            // member streams are final
+            try {
+                tmpIn = socket.getInputStream();
+                tmpOut = socket.getOutputStream();
+            } catch (IOException e) { }
+
+            mmInStream = tmpIn;
+            mmOutStream = tmpOut;
+        }
+
+        public void run() {
+            byte[] buffer = new byte[256];  // buffer store for the stream
+            int bytes; // bytes returned from read()
+
+            // Keep listening to the InputStream until an exception occurs
+            while (true) {
+                try {
+                    // Read from the InputStream
+                    bytes = mmInStream.read(buffer);        // Get number of bytes and message in "buffer"
+                    mHandler.obtainMessage(RECIEVE_MESSAGE, bytes, -1, buffer).sendToTarget();     // Send to message queue Handler
+                } catch (IOException e) {
+                    break;
+                }
+            }
+        }
+
+        /* Call this from the main activity to send data to the remote device */
+        public void write(String message) {
+            Log.d(TAG, "...Data to send: " + message + "...");
+            byte[] msgBuffer = message.getBytes();
+            try {
+                mmOutStream.write(msgBuffer);
+            } catch (IOException e) {
+                Log.d(TAG, "...Error data send: " + e.getMessage() + "...");
+            }
+        }
+
+        public void write(int message) {
+            Log.d(TAG, "...Data to send: " + String.valueOf(message) + "...");
+            byte[] msgBuffer = ByteBuffer.allocate(4).putInt(message).array();
+            try {
+                mmOutStream.write(msgBuffer);
+            } catch (IOException e) {
+                Log.d(TAG, "...Error data send: " + e.getMessage() + "...");
+            }
+        }
     }
 
     /*
