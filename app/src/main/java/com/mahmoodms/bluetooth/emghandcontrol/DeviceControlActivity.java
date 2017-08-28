@@ -108,6 +108,7 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
     private String fileTimeStamp = "";
     private double dataRate;
     private double mEMGClass = 0;
+    public static final double mCURRENT_CLASS = 2.0;
     private double mClassifiedSSVEPClass = 0;
     private int mLastButtonPress = 0;
 
@@ -194,9 +195,9 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
         checkBTState();
 
         // Initialize our XYPlot reference:
-        mGraphAdapterCh1 = new GraphAdapter(1000, "EEG Data Ch 1", false, false, Color.BLUE); //Color.parseColor("#19B52C") also, RED, BLUE, etc.
-        mGraphAdapterCh2 = new GraphAdapter(1000, "EEG Data Ch 2", false, false, Color.RED); //Color.parseColor("#19B52C") also, RED, BLUE, etc.
-        mGraphAdapterCh3 = new GraphAdapter(1000, "EEG Data Ch 3", false, false, Color.GREEN); //Color.parseColor("#19B52C") also, RED, BLUE, etc.
+        mGraphAdapterCh1 = new GraphAdapter(1000, "EMG Data Ch 1", false, false, Color.BLUE); //Color.parseColor("#19B52C") also, RED, BLUE, etc.
+        mGraphAdapterCh2 = new GraphAdapter(1000, "EMG Data Ch 2", false, false, Color.RED); //Color.parseColor("#19B52C") also, RED, BLUE, etc.
+        mGraphAdapterCh3 = new GraphAdapter(1000, "EMG Data Ch 3", false, false, Color.GREEN); //Color.parseColor("#19B52C") also, RED, BLUE, etc.
         //PLOT CH1 By default
         mGraphAdapterCh1.plotData = true;
         mGraphAdapterCh2.plotData = true;
@@ -228,7 +229,7 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
                 Uri uii;
                 uii = Uri.fromFile(file);
                 Intent exportData = new Intent(Intent.ACTION_SEND);
-                exportData.putExtra(Intent.EXTRA_SUBJECT, "Ion Sensor Data Export Details");
+                exportData.putExtra(Intent.EXTRA_SUBJECT, "data.csv");
                 exportData.putExtra(Intent.EXTRA_STREAM, uii);
                 exportData.setType("text/html");
                 startActivity(exportData);
@@ -351,7 +352,7 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
         root = Environment.getExternalStorageDirectory();
         fileTimeStamp = "EMG_" + getTimeStamp();
         if (root.canWrite()) {
-            File dir = new File(root.getAbsolutePath() + "/EEGData");
+            File dir = new File(root.getAbsolutePath() + "/EMGData");
             dir.mkdirs();
             file = new File(dir, fileTimeStamp + ".csv");
             if (file.exists() && !file.isDirectory()) {
@@ -652,38 +653,15 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
             if (Math.floor(mGraphAdapterCh1.lastTimeValues[5]) == (mSecondsBetweenStimulus * mAlertBeepCounter)) {
                 mAlertBeepCounter++;
                 int temp = mAlertBeepCounter-1;
-//                switch (temp) {
-//                    case 0:
-//                        mEMGClass = 0;
-//                        break;
-//                    case 1:
-//                        mEMGClass = 1;
-//                        break;
-//                    case 2:
-//                        mEMGClass = 0;
-//                        break;
-//                    case 3:
-//                        mEMGClass = 2;
-//                        break;
-//                    case 4:
-//                        mEMGClass = 0;
-//                        break;
-//                    case 5:
-//                        mEMGClass = 3;
-//                        break;
-//                    case 6:
-//                        mEMGClass = 0;
-//                        break;
-//                    case 7:
-//                        mEMGClass = 4;
-//                        break;
-//                    case 8:
-//                        mEMGClass = 0;
-//                        break;
-//                    default:
-//                        break;
-//                }
-                if(temp==0) {
+                if(temp%2==0) {
+                    mEMGClass = 2;
+//                    Log.e(TAG,"Notify: Switching Signal!!!");
+                    mMediaBeep.start();
+                } else {
+                    mEMGClass = 1;
+                }
+                Log.e(TAG, "mEMGClass Changed to : "+String.valueOf(mEMGClass));
+                /*if(temp==0) {
                     mEMGClass = 0;
                 } else if(temp==1) {
                     mEMGClass = 1;
@@ -695,10 +673,9 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
                     mEMGClass = 4;
                 } else {
                     mEMGClass = 0;
-                }
+                }*/
                 //Play Sound:
-                Log.e(TAG,"Notify: Switching Signal!!!");
-                mMediaBeep.start();
+
             }
         }
 
@@ -1089,8 +1066,8 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
         System.loadLibrary("android-jni");
     }
 
-//    public native int jmainInitialization(boolean b);
+    public native int jmainInitialization(boolean b);
 
-//    public native double[] jClassifySSVEP(double[] a, double[] b, double c);
+    public native double[] jClassifySSVEP(double[] a, double[] b, double c);
 
 }

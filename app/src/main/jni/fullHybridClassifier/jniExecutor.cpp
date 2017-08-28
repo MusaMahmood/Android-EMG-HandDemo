@@ -1,7 +1,7 @@
 //
 // Created by mahmoodms on 4/3/2017.
 //
-
+// PACKAGE NAME: com.mahmoodms.bluetooth.emghandcontrol
 #include "rt_nonfinite.h"
 #include "classifySSVEP.h"
 /*Additional Includes*/
@@ -15,7 +15,7 @@
 
 extern "C" {
 JNIEXPORT jdoubleArray JNICALL
-Java_com_mahmoodms_bluetooth_eegssvepwheelchairdemo_DeviceControlActivity_jClassifySSVEP(
+Java_com_mahmoodms_bluetooth_emghandcontrol_DeviceControlActivity_jClassifySSVEP(
         JNIEnv *env, jobject jobject1, jdoubleArray ch1, jdoubleArray ch2, jdouble threshold) {
     jdouble *X1 = env->GetDoubleArrayElements(ch1, NULL);
     jdouble *X2 = env->GetDoubleArrayElements(ch2, NULL);
@@ -31,7 +31,7 @@ Java_com_mahmoodms_bluetooth_eegssvepwheelchairdemo_DeviceControlActivity_jClass
 
 //extern "C" {
 //JNIEXPORT jdoubleArray JNICALL
-//Java_com_mahmoodms_bluetooth_eegssvepwheelchairdemo_DeviceControlActivity_jClassifySSVEP2(
+//Java_com_mahmoodms_bluetooth_emghandcontrol_DeviceControlActivity_jClassifySSVEP2(
 //        JNIEnv *env, jobject jobject1, jdoubleArray ch1, jdoubleArray ch2, jdouble threshold) {
 //    jdouble *X1 = env->GetDoubleArrayElements(ch1, NULL);
 //    jdouble *X2 = env->GetDoubleArrayElements(ch2, NULL);
@@ -48,7 +48,7 @@ Java_com_mahmoodms_bluetooth_eegssvepwheelchairdemo_DeviceControlActivity_jClass
 
 extern "C" {
 JNIEXPORT jint JNICALL
-Java_com_mahmoodms_bluetooth_eegssvepwheelchairdemo_DeviceControlActivity_jmainInitialization(
+Java_com_mahmoodms_bluetooth_emghandcontrol_DeviceControlActivity_jmainInitialization(
         JNIEnv *env, jobject obj, jboolean terminate) {
     if (!(bool) terminate) {
         classifySSVEP_initialize();
