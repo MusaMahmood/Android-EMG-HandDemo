@@ -607,7 +607,9 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
     //EOG:
     // Classification
     private double[] yfitarray = new double[5];
-
+    byte[] dataBytesCh1;
+    byte[] dataBytesCh2;
+    byte[] dataBytesCh3;
     private short packNumCh1 = 0;
     private short packNumCh2 = 0;
     private short packNumCh3 = 0;
@@ -623,21 +625,21 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
     public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
         //TODO: ADD BATTERY MEASURE CAPABILITY IN FIRMWARE: (ble_ADC)
         if (AppConstant.CHAR_EEG_CH1_SIGNAL.equals(characteristic.getUuid())) {
-            byte[] dataEEGBytes = characteristic.getValue();
+            dataBytesCh1 = characteristic.getValue();
             if (!eeg_ch1_data_on) {
                 eeg_ch1_data_on = true;
             }
-            getDataRateBytes(dataEEGBytes.length);
+            getDataRateBytes(dataBytesCh1.length);
 //            if(mEEGConnected) mGraphAdapterCh1.addDataPoints(dataEEGBytes,3,packetNumber);
             if(mEEGConnected) {
                 if(bufferCh1!=null) {
                     //concatenate
-                    bufferCh1 = Bytes.concat(bufferCh1, dataEEGBytes);
+                    bufferCh1 = Bytes.concat(bufferCh1, dataBytesCh1);
                 } else {
                     //Init:
-                    bufferCh1 = dataEEGBytes;
+                    bufferCh1 = dataBytesCh1;
                 }
-                dataNumCh1+=dataEEGBytes.length/3;
+                dataNumCh1+=dataBytesCh1.length/3;
                 packNumCh1++;
                 if(packNumCh1==10) {
                     for (int i = 0; i < bufferCh1.length/3; i++) {
@@ -653,18 +655,18 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
             if (!eeg_ch2_data_on) {
                 eeg_ch2_data_on = true;
             }
-            byte[] dataEEGBytes = characteristic.getValue();
-            int byteLength = dataEEGBytes.length;
+            dataBytesCh2 = characteristic.getValue();
+            int byteLength = dataBytesCh2.length;
             getDataRateBytes(byteLength);
             if(mEEGConnected) {
                 if(bufferCh2!=null) {
                     //concatenate
-                    bufferCh2 = Bytes.concat(bufferCh2, dataEEGBytes);
+                    bufferCh2 = Bytes.concat(bufferCh2, dataBytesCh2);
                 } else {
                     //Init:
-                    bufferCh2 = dataEEGBytes;
+                    bufferCh2 = dataBytesCh2;
                 }
-                dataNumCh2+=dataEEGBytes.length/3;
+                dataNumCh2+=dataBytesCh2.length/3;
                 packNumCh2++;
                 if(packNumCh2==10) {
                     for (int i = 0; i < bufferCh2.length/3; i++) {
@@ -680,18 +682,18 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
             if (!eeg_ch3_data_on) {
                 eeg_ch3_data_on = true;
             }
-            byte[] dataEEGBytes = characteristic.getValue();
-            int byteLength = dataEEGBytes.length;
+            dataBytesCh3 = characteristic.getValue();
+            int byteLength = dataBytesCh3.length;
             getDataRateBytes(byteLength);
             if(mEEGConnected) {
                 if(bufferCh3!=null) {
                     //concatenate
-                    bufferCh3 = Bytes.concat(bufferCh3, dataEEGBytes);
+                    bufferCh3 = Bytes.concat(bufferCh3, dataBytesCh3);
                 } else {
                     //Init:
-                    bufferCh3 = dataEEGBytes;
+                    bufferCh3 = dataBytesCh3;
                 }
-                dataNumCh3+=dataEEGBytes.length/3;
+                dataNumCh3+=dataBytesCh3.length/3;
                 packNumCh3++;
                 if(packNumCh3==10) {
                     for (int i = 0; i < bufferCh3.length/3; i++) {
@@ -707,12 +709,10 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
         if (eeg_ch1_data_on && eeg_ch2_data_on && eeg_ch3_data_on) {
             packetNumber++;
             mEEGConnected = true;
-            eeg_ch1_data_on = false;
-            eeg_ch2_data_on = false;
-            eeg_ch3_data_on = false;
+            eeg_ch1_data_on = false; eeg_ch2_data_on = false; eeg_ch3_data_on = false;
 //            for (int i = 0; i < 6; i++) {
-//                if (mGraphAdapterCh1.lastDataValues != null && mGraphAdapterCh2.lastDataValues != null)
-//                    writeToDisk24(mGraphAdapterCh1.lastDataValues[i], mGraphAdapterCh2.lastDataValues[i], mGraphAdapterCh3.lastDataValues[i]);
+                if (dataBytesCh3 != null && dataBytesCh2 != null && dataBytesCh1 != null)
+                    writeToDisk24(dataBytesCh1,dataBytesCh2,dataBytesCh3);
 //            }
         }
         if (mSecondsBetweenStimulus != 0) {
@@ -761,15 +761,12 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
                 mAlertBeepCounterSwitch++;
                 mMediaBeep.start();
                 //For training open/close
-                /*if(temp%2==0) {
-                    mEMGClass = 2;
-//                    Log.e(TAG,"Notify: Switching Signal!!!");
-                    mMediaBeep.start();
-                } else {
-                    mEMGClass = 1;
-                }*/
-//                Log.e(TAG, "mEMGClass Changed to : "+String.valueOf(mEMGClass));
-                //Play Sound:
+//                if(temp%2==0) {
+//                    mEMGClass = 2;
+//                    mMediaBeep.start();
+//                } else {
+//                    mEMGClass = 1;
+//                }
             }
         }
 
@@ -892,6 +889,17 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
         } catch (IOException e) {
             Log.e("IOException", e.toString());
         }
+    }
+
+    private void writeToDisk24(byte[] ch1, byte[] ch2, byte[] ch3) {
+        for (int i = 0; i < ch1.length/3; i++) {
+            try {
+                exportFileWithClass(bytesToDouble(ch1[3*i], ch1[3*i+1], ch1[3*i+2]), bytesToDouble(ch2[3*i], ch2[3*i+1], ch2[3*i+2]), bytesToDouble(ch3[3*i], ch3[3*i+1], ch3[3*i+2]));
+            } catch (IOException e) {
+                Log.e("IOException", e.toString());
+            }
+        }
+
     }
 
     private boolean lastThreeMatches(double[] yfitarray) {
