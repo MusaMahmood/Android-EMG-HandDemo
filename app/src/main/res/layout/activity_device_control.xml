@@ -9,43 +9,6 @@
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:layout_weight="0.5"
-        android:orientation="horizontal">
-
-        <com.androidplot.xy.XYPlot
-            android:id="@+id/emgCh1"
-            style="@style/APDefacto.Dark"
-            androidPlot.backgroundPaint.color="#FFFFFF"
-            androidPlot.borderPaint.color="#FFFFFF"
-            androidPlot.domainLabel="Domain"
-            androidPlot.domainLabelWidget.labelPaint.textSize="@dimen/domain_label_font_size"
-            androidPlot.graphWidget.backgroundPaint.color="#FFFFFF"
-            androidPlot.graphWidget.domainOriginLabelPaint.textSize="@dimen/domain_tick_label_font_size"
-            androidPlot.graphWidget.gridBackgroundPaint.color="#fafafa"
-            androidPlot.graphWidget.marginBottom="6dp"
-            androidPlot.graphWidget.marginLeft="6dp"
-            androidPlot.graphWidget.marginRight="0dp"
-            androidPlot.graphWidget.marginTop="6dp"
-            androidPlot.graphWidget.rangeOriginLabelPaint.textSize="@dimen/range_tick_label_font_size"
-            androidPlot.rangeLabel="Range"
-            androidPlot.rangeLabelWidget.labelPaint.textSize="@dimen/range_label_font_size"
-            androidPlot.title="EMG Data Plot"
-            androidPlot.titleWidget.labelPaint.textSize="@dimen/title_font_size"
-            androidplot.renderMode="use_background_thread"
-            android:layout_width="match_parent"
-            android:layout_height="fill_parent"
-            android:layout_marginLeft="0dp"
-            android:layout_marginRight="0dp"
-            android:layout_marginTop="0dp"
-            ap:domainLabel="domain"
-            ap:label="EMG Data"
-            ap:rangeLabel="range" />
-
-    </LinearLayout>
-
-    <LinearLayout
-        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal">
 
@@ -110,6 +73,103 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="2" />
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="horizontal">
+
+        <com.androidplot.xy.XYPlot
+            android:id="@+id/emgCh1"
+            style="@style/APDefacto.Dark"
+            androidPlot.backgroundPaint.color="#FFFFFF"
+            androidPlot.borderPaint.color="#FFFFFF"
+            androidPlot.domainLabel="Domain"
+            androidPlot.domainLabelWidget.labelPaint.textSize="@dimen/domain_label_font_size"
+            androidPlot.graphWidget.backgroundPaint.color="#FFFFFF"
+            androidPlot.graphWidget.domainOriginLabelPaint.textSize="@dimen/domain_tick_label_font_size"
+            androidPlot.graphWidget.gridBackgroundPaint.color="#fafafa"
+            androidPlot.graphWidget.marginBottom="6dp"
+            androidPlot.graphWidget.marginLeft="6dp"
+            androidPlot.graphWidget.marginRight="0dp"
+            androidPlot.graphWidget.marginTop="6dp"
+            androidPlot.graphWidget.rangeOriginLabelPaint.textSize="@dimen/range_tick_label_font_size"
+            androidPlot.rangeLabel="Range"
+            androidPlot.rangeLabelWidget.labelPaint.textSize="@dimen/range_label_font_size"
+            androidPlot.title="EMG Data Plot"
+            androidPlot.titleWidget.labelPaint.textSize="@dimen/title_font_size"
+            androidplot.renderMode="use_background_thread"
+            android:layout_width="wrap_content"
+            android:layout_height="fill_parent"
+            android:layout_marginLeft="0dp"
+            android:layout_marginRight="0dp"
+            android:layout_marginTop="0dp"
+            android:layout_weight="1"
+            ap:domainLabel="domain"
+            ap:label="EMG Data"
+            ap:rangeLabel="range" />
+
+        <com.androidplot.xy.XYPlot
+            android:id="@+id/emgCh2"
+            style="@style/APDefacto.Dark"
+            androidPlot.backgroundPaint.color="#FFFFFF"
+            androidPlot.borderPaint.color="#FFFFFF"
+            androidPlot.domainLabel="Domain"
+            androidPlot.domainLabelWidget.labelPaint.textSize="@dimen/domain_label_font_size"
+            androidPlot.graphWidget.backgroundPaint.color="#FFFFFF"
+            androidPlot.graphWidget.domainOriginLabelPaint.textSize="@dimen/domain_tick_label_font_size"
+            androidPlot.graphWidget.gridBackgroundPaint.color="#fafafa"
+            androidPlot.graphWidget.marginBottom="6dp"
+            androidPlot.graphWidget.marginLeft="6dp"
+            androidPlot.graphWidget.marginRight="0dp"
+            androidPlot.graphWidget.marginTop="6dp"
+            androidPlot.graphWidget.rangeOriginLabelPaint.textSize="@dimen/range_tick_label_font_size"
+            androidPlot.rangeLabel="Range"
+            androidPlot.rangeLabelWidget.labelPaint.textSize="@dimen/range_label_font_size"
+            androidPlot.title="EMG Data Plot"
+            androidPlot.titleWidget.labelPaint.textSize="@dimen/title_font_size"
+            androidplot.renderMode="use_background_thread"
+            android:layout_width="wrap_content"
+            android:layout_height="fill_parent"
+            android:layout_marginLeft="0dp"
+            android:layout_marginRight="0dp"
+            android:layout_marginTop="0dp"
+            android:layout_weight="1"
+            ap:domainLabel="domain"
+            ap:label="EMG Data"
+            ap:rangeLabel="range" />
+
+        <com.androidplot.xy.XYPlot
+            android:id="@+id/emgCh3"
+            style="@style/APDefacto.Dark"
+            androidPlot.backgroundPaint.color="#FFFFFF"
+            androidPlot.borderPaint.color="#FFFFFF"
+            androidPlot.domainLabel="Domain"
+            androidPlot.domainLabelWidget.labelPaint.textSize="@dimen/domain_label_font_size"
+            androidPlot.graphWidget.backgroundPaint.color="#FFFFFF"
+            androidPlot.graphWidget.domainOriginLabelPaint.textSize="@dimen/domain_tick_label_font_size"
+            androidPlot.graphWidget.gridBackgroundPaint.color="#fafafa"
+            androidPlot.graphWidget.marginBottom="6dp"
+            androidPlot.graphWidget.marginLeft="6dp"
+            androidPlot.graphWidget.marginRight="0dp"
+            androidPlot.graphWidget.marginTop="6dp"
+            androidPlot.graphWidget.rangeOriginLabelPaint.textSize="@dimen/range_tick_label_font_size"
+            androidPlot.rangeLabel="Range"
+            androidPlot.rangeLabelWidget.labelPaint.textSize="@dimen/range_label_font_size"
+            androidPlot.title="EMG Data Plot"
+            androidPlot.titleWidget.labelPaint.textSize="@dimen/title_font_size"
+            androidplot.renderMode="use_background_thread"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:layout_marginLeft="0dp"
+            android:layout_marginRight="0dp"
+            android:layout_marginTop="0dp"
+            android:layout_weight="1"
+            ap:domainLabel="domain"
+            ap:label="EMG Data"
+            ap:rangeLabel="range" />
 
     </LinearLayout>
 
