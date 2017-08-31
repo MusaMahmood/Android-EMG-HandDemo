@@ -15,7 +15,6 @@ public class GraphAdapter {
     LineAndPointFormatter lineAndPointFormatter;
     private int seriesHistoryDataPoints;
     double[] lastTimeValues;
-    double[] lastDataValues;
     double[] unfilteredSignal;
     boolean plotData;
 
@@ -63,52 +62,10 @@ public class GraphAdapter {
         }
     }
 
-    private void updateGraph() {
-        if(!filterData) {
-            for (int i = 0; i < intArraySize; i++) {
-                plot(lastTimeValues[i], lastDataValues[i]);
-            }
-        } else {
-            //FILTER AND CALL PLOT (SOMEHOW)
-        }
-    }
-
     private void plot(double x, double y) {
         if(series.size()>seriesHistoryDataPoints-1) {
             series.removeFirst();
         }
         series.addLast(x,y);
-    }
-
-    //Blah:
-    /**
-     * Convert an unsigned integer value to a two's-complement encoded
-     * signed value.
-     */
-    private int unsignedToSigned(int unsigned, int size) {
-        if ((unsigned & (1 << size - 1)) != 0) {
-            unsigned = -1 * ((1 << size - 1) - (unsigned & ((1 << size - 1) - 1)));
-        }
-        return unsigned;
-    }
-
-    private int unsignedBytesToInt(byte b0, byte b1) {
-        return (unsignedByteToInt(b0) + (unsignedByteToInt(b1) << 8));
-    }
-
-    private int unsignedBytesToInt(byte b0, byte b1, byte b2) {
-        return (unsignedByteToInt(b0) + (unsignedByteToInt(b1) << 8) + (unsignedByteToInt(b2) << 16));
-    }
-
-    /**
-     * Convert a signed byte to an unsigned int.
-     */
-    private int unsignedByteToInt(byte b) {
-        return b & 0xFF;
-    }
-
-    public double convert24bitInt(final int int24bit) {
-        double dividedInt = (double) int24bit/8388607.0;
-        return dividedInt*2.42;
     }
 }

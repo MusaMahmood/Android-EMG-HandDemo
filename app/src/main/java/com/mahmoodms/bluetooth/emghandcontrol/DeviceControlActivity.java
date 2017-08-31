@@ -715,8 +715,8 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
 //                    writeToDisk24(mGraphAdapterCh1.lastDataValues[i], mGraphAdapterCh2.lastDataValues[i], mGraphAdapterCh3.lastDataValues[i]);
 //            }
         }
-        if (mSecondsBetweenStimulus !=0 && mGraphAdapterCh1.lastTimeValues != null) {
-            if (Math.floor(mGraphAdapterCh1.lastTimeValues[5]) == (mSecondsBetweenStimulus * mAlertBeepCounter)) {
+        if (mSecondsBetweenStimulus != 0) {
+            if (Math.floor(0.004*dataNumCh1) == (mSecondsBetweenStimulus * mAlertBeepCounter)) {
                 mAlertBeepCounter++;
                 int temp = mAlertBeepCounterSwitch;
                 switch (temp) {
