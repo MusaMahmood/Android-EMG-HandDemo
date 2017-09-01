@@ -14,8 +14,7 @@ public class GraphAdapter {
     SimpleXYSeries series;
     LineAndPointFormatter lineAndPointFormatter;
     private int seriesHistoryDataPoints;
-    double[] lastTimeValues;
-    double[] unfilteredSignal;
+    double[] classificationBuffer;
     boolean plotData;
 
     // Set/Get Methods (Don't need yet)
@@ -35,8 +34,9 @@ public class GraphAdapter {
         this.lineAndPointFormatter = new LineAndPointFormatter(lineAndPointFormatterColor, null, null, null);
         setPointWidth(5); //Def value:
         //Initialize arrays:
-        this.unfilteredSignal = new double[seriesHistoryDataPoints];
-        // Initialize series
+//        this.classificationBuffer = new double[seriesHistoryDataPoints];
+        // Initialize series`
+        this.classificationBuffer = new double[500];
         this.series = new SimpleXYSeries(XYSeriesTitle);
         if(useImplicitXVals) this.series.useImplicitXVals();
         //Don't plot data until explicitly told to do so:
@@ -47,7 +47,17 @@ public class GraphAdapter {
         this.lineAndPointFormatter.getLinePaint().setStrokeWidth(width);
     }
 
+    private void addToBuffer(double a) {
+        if(this.classificationBuffer!=null) {
+            //shift backwards
+            System.arraycopy(this.classificationBuffer, 1, this.classificationBuffer, 0, 499);
+            //add to front:
+            this.classificationBuffer[499] = a;
+        }
+    }
+
     public void addDataPoint(double data, int index) {
+        addToBuffer(data);
         if(this.plotData) plot((double)index*0.004,data);
     }
 

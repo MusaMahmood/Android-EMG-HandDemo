@@ -41,6 +41,7 @@ import com.androidplot.util.Redrawer;
 import com.androidplot.xy.SimpleXYSeries;
 import com.beele.BluetoothLe;
 import com.google.common.primitives.Bytes;
+import com.google.common.primitives.Doubles;
 import com.opencsv.CSVWriter;
 
 import java.io.File;
@@ -91,7 +92,7 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
 //    private TextView mBatteryLevel;
     private TextView mDataRate;
     private TextView mSSVEPClassTextView;
-//    private TextView mYfitTextView;
+    private TextView mYfitTextView;
     private Button mExportButton;
     private long mLastTime;
     private long mCurrentTime;
@@ -167,14 +168,13 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
 //        mBatteryLevel = (TextView) findViewById(R.id.batteryText);
         mDataRate = (TextView) findViewById(R.id.dataRate);
         mDataRate.setText("...");
-//        mYfitTextView = (TextView) findViewById(R.id.textViewYfit);
         //Initialize Bluetooth
         ActionBar ab = getActionBar();
         ab.setTitle(mDeviceName);
         ab.setSubtitle(mDeviceAddress);
         initializeBluetoothArray();
         //Bluetooth Classic Stuff:
-
+        mYfitTextView = (TextView) findViewById(R.id.classifierOutput);
         mHandler = new Handler() {
             public void handleMessage(android.os.Message msg) {
                 switch (msg.what) {
@@ -390,7 +390,7 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
 
     @Override
     public void onResume() {
-//        jmainInitialization(false);
+        jmainInitialization(false);
         String fileTimeStampConcat = "EEGSensorData_" + getTimeStamp();
         Log.d("onResume-timeStamp", fileTimeStampConcat);
         if (!fileSaveInitialized) {
@@ -620,6 +620,10 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
     private byte[] bufferCh2;
     private byte[] bufferCh3;
 
+    private double[] classificationBufferCh1 = new double[500];
+    private double[] classificationBufferCh2 = new double[500];
+    private double[] classificationBufferCh3 = new double[500];
+
 
     @Override
     public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
@@ -710,57 +714,61 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
             packetNumber++;
             mEEGConnected = true;
             eeg_ch1_data_on = false; eeg_ch2_data_on = false; eeg_ch3_data_on = false;
-//            for (int i = 0; i < 6; i++) {
-                if (dataBytesCh3 != null && dataBytesCh2 != null && dataBytesCh1 != null)
-                    writeToDisk24(dataBytesCh1,dataBytesCh2,dataBytesCh3);
-//            }
+            if (dataBytesCh3 != null && dataBytesCh2 != null && dataBytesCh1 != null)
+                writeToDisk24(dataBytesCh1,dataBytesCh2,dataBytesCh3);
+
+            if(packetNumber%10==0) {
+                ClassifyTask classifyTask = new ClassifyTask();
+                Log.e(TAG,"["+String.valueOf(mNumberOfClassifierCalls+1)+"] CALLING CLASSIFIER FUNCTION!");
+                classifyTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+            }
         }
         if (mSecondsBetweenStimulus != 0) {
             if (Math.floor(0.004*dataNumCh1) == (mSecondsBetweenStimulus * mAlertBeepCounter)) {
                 mAlertBeepCounter++;
                 int temp = mAlertBeepCounterSwitch;
-                switch (temp) {
-                    case 1:
-                        mEMGClass = 0;
-                        break;
-                    case 2:
-                        mEMGClass = 3;
-                        break;
-                    case 3:
-                        mEMGClass=0;
-                        break;
-                    case 4:
-                        mEMGClass=4;
-                        break;
-                    case 5:
-                        mEMGClass=0;
-                        break;
-                    case 6:
-                        mEMGClass=5;
-                        break;
-                    case 7:
-                        mEMGClass=0;
-                        break;
-                    case 8:
-                        mEMGClass=6;
-                        break;
-                    case 9:
-                        mEMGClass=0;
-                        break;
-                    case 10:
-                        mEMGClass=7;
-                        break;
-                    case 11:
-                        mEMGClass=0;
-                        mAlertBeepCounterSwitch = 1;
-                        break;
-                    default:
-                        mEMGClass = 0;
-                        break;
-                }
-                mAlertBeepCounterSwitch++;
-                mMediaBeep.start();
-                //For training open/close
+//                switch (temp) {
+//                    case 1:
+//                        mEMGClass = 0;
+//                        break;
+//                    case 2:
+//                        mEMGClass = 3;
+//                        break;
+//                    case 3:
+//                        mEMGClass=0;
+//                        break;
+//                    case 4:
+//                        mEMGClass=4;
+//                        break;
+//                    case 5:
+//                        mEMGClass=0;
+//                        break;
+//                    case 6:
+//                        mEMGClass=5;
+//                        break;
+//                    case 7:
+//                        mEMGClass=0;
+//                        break;
+//                    case 8:
+//                        mEMGClass=6;
+//                        break;
+//                    case 9:
+//                        mEMGClass=0;
+//                        break;
+//                    case 10:
+//                        mEMGClass=7;
+//                        break;
+//                    case 11:
+//                        mEMGClass=0;
+//                        mAlertBeepCounterSwitch = 1;
+//                        break;
+//                    default:
+//                        mEMGClass = 0;
+//                        break;
+//                }
+//                mAlertBeepCounterSwitch++;
+//                mMediaBeep.start();
+//                //For training open/close
 //                if(temp%2==0) {
 //                    mEMGClass = 2;
 //                    mMediaBeep.start();
@@ -788,27 +796,26 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
     private class ClassifyTask extends AsyncTask<Void, Void, Double> {
         @Override
         protected Double doInBackground(Void... voids) {
-            double[] getInstance1 = mGraphAdapterCh1.unfilteredSignal;
-            double[] getInstance2 = mGraphAdapterCh2.unfilteredSignal;
-//            double Y[] = jClassifySSVEP(getInstance1,getInstance2,1.5);
-//            double yclass = Y[1];
-//            mNumberOfClassifierCalls++;
-//            Log.e(TAG, "Classifier Output: [#" + String.valueOf(mNumberOfClassifierCalls) + "::" + Arrays.toString(Y) + "]");
-//            return yclass;
-            return (double)0;
+            double[] concat = Doubles.concat(mGraphAdapterCh1.classificationBuffer,mGraphAdapterCh2.classificationBuffer,mGraphAdapterCh3.classificationBuffer);
+            return jClassify(concat);
         }
 
         @Override
         protected void onPostExecute(Double predictedClass) {
             mClassifiedSSVEPClass = predictedClass;
-            final String s = "SSVEP\n: [" + String.valueOf(predictedClass) + "]";
+            final String s = "[" + String.valueOf(predictedClass) + "]";
             runOnUiThread(new Runnable() {
                 @Override
                 public void run() {
-//                    mYfitTextView.setText(s);
+                    mYfitTextView.setText(s);
                 }
             });
+//            if()
 //            executeWheelchairCommand((int)mClassifiedSSVEPClass);
+            if(mConnectedThread!=null && predictedClass!=0) {
+                int command = (int)predictedClass.doubleValue();
+                mConnectedThread.write(command);
+            }
             super.onPostExecute(predictedClass);
         }
     }
@@ -1197,6 +1204,6 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
 
     public native int jmainInitialization(boolean b);
 
-    public native double[] jClassifySSVEP(double[] a, double[] b, double c);
+    public native double jClassify(double[] a);
 
 }

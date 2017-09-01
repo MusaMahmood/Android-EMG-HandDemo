@@ -4,8 +4,8 @@
  * government, commercial, or other organizational use.
  * File: rt_nonfinite.cpp
  *
- * MATLAB Coder version            : 3.1
- * C/C++ source code generated on  : 25-May-2017 13:10:49
+ * MATLAB Coder version            : 3.3
+ * C/C++ source code generated on  : 31-Aug-2017 23:01:17
  */
 
 /*
