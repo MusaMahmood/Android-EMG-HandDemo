@@ -4,7 +4,7 @@
 // PACKAGE NAME: com.mahmoodms.bluetooth.emghandcontrol
 #include "rt_nonfinite.h"
 //#include "classifySSVEP.h"
-#include "classifyArmEMGv2.h"
+#include "classifyArmEMG.h"
 /*Additional Includes*/
 #include <jni.h>
 #include <android/log.h>
@@ -17,10 +17,10 @@
 extern "C" {
 JNIEXPORT jdouble JNICALL
 Java_com_mahmoodms_bluetooth_emghandcontrol_DeviceControlActivity_jClassify(
-        JNIEnv *env, jobject jobject1, jdoubleArray ch123Data) {
+        JNIEnv *env, jobject jobject1, jdoubleArray ch123Data, jdouble Y) {
     jdouble *X1 = env->GetDoubleArrayElements(ch123Data, NULL);
     if (X1 == NULL) LOGE("ERROR - C_ARRAY IS NULL");
-    return classifyArmEMGv2(X1);
+    return classifyArmEMG(X1, Y);
 }
 }
 
@@ -47,7 +47,7 @@ Java_com_mahmoodms_bluetooth_emghandcontrol_DeviceControlActivity_jmainInitializ
         JNIEnv *env, jobject obj, jboolean terminate) {
     if (!(bool) terminate) {
 //        classifySSVEP_initialize();
-        classifyArmEMGv2_initialize();
+        classifyArmEMG_initialize();
         return 0;
     } else {
         return -1;

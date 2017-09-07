@@ -14,6 +14,7 @@ public class GraphAdapter {
     SimpleXYSeries series;
     LineAndPointFormatter lineAndPointFormatter;
     private int seriesHistoryDataPoints;
+    private int bufferSize;
     double[] classificationBuffer;
     boolean plotData;
 
@@ -26,7 +27,7 @@ public class GraphAdapter {
     }
 
     // Constructor
-    public GraphAdapter(int seriesHistoryDataPoints, String XYSeriesTitle, boolean useImplicitXVals, boolean filterData, int lineAndPointFormatterColor) {
+    public GraphAdapter(int seriesHistoryDataPoints, String XYSeriesTitle, boolean useImplicitXVals, boolean filterData, int lineAndPointFormatterColor, int classificationBufferSize) {
         //default values
         this.filterData = filterData;
         this.seriesHistoryDataPoints = seriesHistoryDataPoints;
@@ -36,7 +37,8 @@ public class GraphAdapter {
         //Initialize arrays:
 //        this.classificationBuffer = new double[seriesHistoryDataPoints];
         // Initialize series`
-        this.classificationBuffer = new double[500];
+        this.bufferSize = classificationBufferSize;
+        this.classificationBuffer = new double[classificationBufferSize];
         this.series = new SimpleXYSeries(XYSeriesTitle);
         if(useImplicitXVals) this.series.useImplicitXVals();
         //Don't plot data until explicitly told to do so:
@@ -48,11 +50,11 @@ public class GraphAdapter {
     }
 
     private void addToBuffer(double a) {
-        if(this.classificationBuffer!=null) {
+        if(this.classificationBuffer!=null && this.bufferSize>0) {
             //shift backwards
-            System.arraycopy(this.classificationBuffer, 1, this.classificationBuffer, 0, 499);
+            System.arraycopy(this.classificationBuffer, 1, this.classificationBuffer, 0, this.bufferSize-1);
             //add to front:
-            this.classificationBuffer[499] = a;
+            this.classificationBuffer[this.bufferSize-1] = a;
         }
     }
 

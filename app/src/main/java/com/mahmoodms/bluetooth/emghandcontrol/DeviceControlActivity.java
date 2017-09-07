@@ -112,8 +112,6 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
     private String fileTimeStamp = "";
     private double dataRate;
     private double mEMGClass = 0;
-    public static final double mCURRENT_CLASS = 2.0;
-    private double mClassifiedSSVEPClass = 0;
     private int mLastButtonPress = 0;
 
     //Classification
@@ -198,9 +196,9 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
         checkBTState();
 
         // Initialize our XYPlot reference:
-        mGraphAdapterCh1 = new GraphAdapter(1000, "EMG Data Ch 1", false, false, Color.BLUE); //Color.parseColor("#19B52C") also, RED, BLUE, etc.
-        mGraphAdapterCh2 = new GraphAdapter(1000, "EMG Data Ch 2", false, false, Color.RED); //Color.parseColor("#19B52C") also, RED, BLUE, etc.
-        mGraphAdapterCh3 = new GraphAdapter(1000, "EMG Data Ch 3", false, false, Color.GREEN); //Color.parseColor("#19B52C") also, RED, BLUE, etc.
+        mGraphAdapterCh1 = new GraphAdapter(1000, "EMG Data Ch 1", false, false, Color.BLUE, 1500); //Color.parseColor("#19B52C") also, RED, BLUE, etc.
+        mGraphAdapterCh2 = new GraphAdapter(1000, "EMG Data Ch 2", false, false, Color.RED, 1500); //Color.parseColor("#19B52C") also, RED, BLUE, etc.
+        mGraphAdapterCh3 = new GraphAdapter(1000, "EMG Data Ch 3", false, false, Color.GREEN, 1500); //Color.parseColor("#19B52C") also, RED, BLUE, etc.
         //PLOT CH1 By default
         mGraphAdapterCh1.plotData = true;
         mGraphAdapterCh2.plotData = true;
@@ -282,6 +280,7 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
             public void onClick(View view) {
                 if(mConnectedThread!=null)
                     mConnectedThread.write(1);
+                mEMGClass = 1;
             }
         });
         b2.setOnClickListener(new View.OnClickListener() {
@@ -289,6 +288,7 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
             public void onClick(View view) {
                 if(mConnectedThread!=null)
                     mConnectedThread.write(2);
+                mEMGClass = 2;
             }
         });
         mMediaBeep = MediaPlayer.create(this, R.raw.beep_01a);
@@ -602,7 +602,7 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
     //Count of How Many Alerts Given To Subject
     private int mAlertBeepCounter = 1;
     private int mAlertBeepCounterSwitch = 1;
-    private int mClassifierCounter = 1;
+    private int mClassifierCounter = 0;
     private int mSecondsBetweenStimulus = 0;
     //EOG:
     // Classification
@@ -619,11 +619,6 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
     private byte[] bufferCh1;
     private byte[] bufferCh2;
     private byte[] bufferCh3;
-
-    private double[] classificationBufferCh1 = new double[500];
-    private double[] classificationBufferCh2 = new double[500];
-    private double[] classificationBufferCh3 = new double[500];
-
 
     @Override
     public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
@@ -717,9 +712,10 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
             if (dataBytesCh3 != null && dataBytesCh2 != null && dataBytesCh1 != null)
                 writeToDisk24(dataBytesCh1,dataBytesCh2,dataBytesCh3);
 
-            if(packetNumber%10==0) {
+            if(packetNumber%5==0 && packetNumber>41) {
                 ClassifyTask classifyTask = new ClassifyTask();
                 Log.e(TAG,"["+String.valueOf(mNumberOfClassifierCalls+1)+"] CALLING CLASSIFIER FUNCTION!");
+                mNumberOfClassifierCalls++;
                 classifyTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
             }
         }
@@ -792,30 +788,19 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
     }
 
     private int mNumberOfClassifierCalls = 0;
+    private double mLastYValue = 0;
 
     private class ClassifyTask extends AsyncTask<Void, Void, Double> {
         @Override
         protected Double doInBackground(Void... voids) {
             double[] concat = Doubles.concat(mGraphAdapterCh1.classificationBuffer,mGraphAdapterCh2.classificationBuffer,mGraphAdapterCh3.classificationBuffer);
-            return jClassify(concat);
+            return jClassify(concat, mLastYValue);
         }
 
         @Override
         protected void onPostExecute(Double predictedClass) {
-            mClassifiedSSVEPClass = predictedClass;
-            final String s = "[" + String.valueOf(predictedClass) + "]";
-            runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    mYfitTextView.setText(s);
-                }
-            });
-//            if()
-//            executeWheelchairCommand((int)mClassifiedSSVEPClass);
-            if(mConnectedThread!=null && predictedClass!=0) {
-                int command = (int)predictedClass.doubleValue();
-                mConnectedThread.write(command);
-            }
+            mLastYValue = predictedClass;
+            processClassifiedData(predictedClass);
             super.onPostExecute(predictedClass);
         }
     }
@@ -862,32 +847,37 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
         }
     }
 
-    private void processClassifiedData(final double Y, final int classifier) {
+    private void processClassifiedData(final double Y) {
+        //Shift backwards:
+        System.arraycopy(yfitarray, 1, yfitarray, 0, 4);
         //Add to end;
         yfitarray[4] = Y;
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                mYfitTextView.setText(String.valueOf(Y));
+            }
+        });
         //Analyze:
-        Log.e(TAG, "C" + String.valueOf(classifier) + " YfitArray: " + Arrays.toString(yfitarray));
+        Log.e(TAG, " YfitArray: " + Arrays.toString(yfitarray));
         final boolean checkLastThreeMatches = lastThreeMatches(yfitarray);
         if (checkLastThreeMatches) {
             //Get value:
             Log.e(TAG, "Found fit: " + String.valueOf(yfitarray[4]));
+            final String s = "[" + String.valueOf(Y) + "]";
+
             // TODO: 4/27/2017 CONDITION :: CONTROL WHEELCHAIR
-            if (mWheelchairControl) {
-//                executeWheelchairCommand((int) yfitarray[4]);
+            if(mConnectedThread!=null && Y!=0) {
+                int command;
+                if(Y==2) {
+                    command = 1;
+                } else if (Y==1) {
+                    command = 2;
+                } else
+                    command = (int)Y;
+                mConnectedThread.write(command);
             }
         }
-//        runOnUiThread(new Runnable() {
-//            @Override
-//            public void run() {
-//                Log.e(TAG, "EOGClassifier, Y: " + String.valueOf(Y));
-//                if (checkLastThreeMatches)
-//                    mYfitTextView.setText("YFIT" + String.valueOf(classifier) + ":\n" + String.valueOf(Y));
-//                double sum = yfitarray[0] + yfitarray[1] + yfitarray[2] + yfitarray[3] + yfitarray[4];
-//                if (sum == 0) {
-//                    mYfitTextView.setText("YFIT" + String.valueOf(classifier) + ":\n" + String.valueOf(Y));
-//                }
-//            }
-//        });
     }
 
     private void writeToDisk24(final double ch1, final double ch2, final double ch3) {
@@ -1204,6 +1194,6 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
 
     public native int jmainInitialization(boolean b);
 
-    public native double jClassify(double[] a);
+    public native double jClassify(double[] Array, double LastY);
 
 }

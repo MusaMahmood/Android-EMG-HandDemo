@@ -2,33 +2,34 @@
 // Academic License - for use in teaching, academic research, and meeting
 // course requirements at degree granting institutions only.  Not for
 // government, commercial, or other organizational use.
-// File: classifyArmEMGv2.h
+// File: classifyArmEMG.h
 //
 // MATLAB Coder version            : 3.3
-// C/C++ source code generated on  : 31-Aug-2017 23:01:17
+// C/C++ source code generated on  : 07-Sep-2017 16:14:58
 //
-#ifndef CLASSIFYARMEMGV2_H
-#define CLASSIFYARMEMGV2_H
+#ifndef CLASSIFYARMEMG_H
+#define CLASSIFYARMEMG_H
 
 // Include Files
 #include <cmath>
-#include <math.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
-#include "rt_nonfinite.h"
 #include "rtwtypes.h"
-#include "classifyArmEMGv2_types.h"
+#include "classifyArmEMG_types.h"
+
+// Type Definitions
+#include <stdio.h>
 
 // Function Declarations
-extern double classifyArmEMGv2(const double dW[1500]);
-extern void classifyArmEMGv2_initialize();
-extern void classifyArmEMGv2_terminate();
+extern double classifyArmEMG(const double dW[4500], double LastY);
+extern void classifyArmEMG_initialize();
+extern void classifyArmEMG_terminate();
 
 #endif
 
 //
-// File trailer for classifyArmEMGv2.h
+// File trailer for classifyArmEMG.h
 //
 // [EOF]
 //
