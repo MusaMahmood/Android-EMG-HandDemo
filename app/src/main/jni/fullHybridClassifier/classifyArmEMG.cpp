@@ -5,23 +5,19 @@
 // File: classifyArmEMG.cpp
 //
 // MATLAB Coder version            : 3.3
-// C/C++ source code generated on  : 07-Sep-2017 16:14:58
+// C/C++ source code generated on  : 08-Sep-2017 00:32:39
 //
 
 // Include Files
 #include "rt_nonfinite.h"
 #include "classifyArmEMG.h"
 
-// Type Definitions
-#include <stdio.h>
-
 // Function Declarations
 static void b_filter(const double b[4], const double a[4], const double x[1518],
                      const double zi[3], double y[1518]);
 static void b_filtfilt(const double x_in[1500], double y_out[1500]);
 static void b_flipud(double x[1518]);
-static int cfprintf();
-static void fileManager(FILE * *f, boolean_T *a);
+static double b_sum(const double x[3]);
 static void filter(const double b[7], const double a[7], const double x[1536],
                    const double zi[6], double y[1536]);
 static void filtfilt(const double x_in[1500], double y_out[1500]);
@@ -142,39 +138,19 @@ static void b_flipud(double x[1518])
 }
 
 //
-// Arguments    : void
-// Return Type  : int
+// Arguments    : const double x[3]
+// Return Type  : double
 //
-static int cfprintf()
+static double b_sum(const double x[3])
 {
-  int nbytesint;
-  FILE * b_NULL;
-  FILE * filestar;
-  boolean_T autoflush;
-  static const char cfmt[27] = { 'B', '/', 'B', '2', ' ', 'T', 'r', 'u', 'e',
-    ' ', '-', ' ', 'H', 'a', 'n', 'd', ' ', 'C', 'l', 'o', 's', 'e', 'd', '.',
-    ' ', '\x0a', '\x00' };
-
-  b_NULL = NULL;
-  nbytesint = 0;
-  fileManager(&filestar, &autoflush);
-  if (!(filestar == b_NULL)) {
-    nbytesint = fprintf(filestar, cfmt);
-    fflush(filestar);
+  double y;
+  int k;
+  y = x[0];
+  for (k = 0; k < 2; k++) {
+    y += x[k + 1];
   }
 
-  return nbytesint;
-}
-
-//
-// Arguments    : FILE * *f
-//                boolean_T *a
-// Return Type  : void
-//
-static void fileManager(FILE * *f, boolean_T *a)
-{
-  *f = stdout;
-  *a = true;
+  return y;
 }
 
 //
@@ -353,8 +329,8 @@ static void sig_rms_pad_fixed(const double b_signal[250], double y[250])
     230U, 231U, 232U, 233U, 234U, 235U, 236U, 237U, 238U, 239U, 240U, 241U, 242U,
     243U, 244U, 245U, 246U, 247U, 248U, 249U, 250U };
 
+  int i0;
   int i1;
-  int i2;
   int S_size[1];
   int loop_ub;
   double x;
@@ -375,17 +351,17 @@ static void sig_rms_pad_fixed(const double b_signal[250], double y[250])
 
     //  Average and take the square root of each window
     if (uv0[i] > uv0[i] + 9) {
+      i0 = 0;
       i1 = 0;
-      i2 = 0;
     } else {
-      i1 = i;
-      i2 = i + 10;
+      i0 = i;
+      i1 = i + 10;
     }
 
-    S_size[0] = i2 - i1;
-    loop_ub = i2 - i1;
-    for (i2 = 0; i2 < loop_ub; i2++) {
-      c_signal[i2] = S[i1 + i2];
+    S_size[0] = i1 - i0;
+    loop_ub = i1 - i0;
+    for (i1 = 0; i1 < loop_ub; i1++) {
+      c_signal[i1] = S[i0 + i1];
     }
 
     x = mean(c_signal, S_size);
@@ -444,7 +420,7 @@ static double trapz(const double x[250])
 double classifyArmEMG(const double dW[4500], double LastY)
 {
   double Y;
-  int i0;
+  int ix;
   int i;
   boolean_T B[6];
   double dWF0[4500];
@@ -455,6 +431,13 @@ double classifyArmEMG(const double dW[4500], double LastY)
   double sigRMS[250];
   double b_sigRMS[750];
   boolean_T b_dWF[250];
+  double SUMS;
+  boolean_T B7_0;
+  int ixstart;
+  double mtmp;
+  int b_ix;
+  boolean_T exitg1;
+  double COMBMAX[3];
 
   // classifyArmEMG
   Y = 0.0;
@@ -464,8 +447,8 @@ double classifyArmEMG(const double dW[4500], double LastY)
   //  Wn2 = (1)*2/Fs; %high pass:
   //  [b1,a1] = butter(3, Wn2, 'high');
   //  LAST 1s / 6s
-  for (i0 = 0; i0 < 6; i0++) {
-    B[i0] = false;
+  for (ix = 0; ix < 6; ix++) {
+    B[ix] = false;
   }
 
   for (i = 0; i < 3; i++) {
@@ -476,21 +459,21 @@ double classifyArmEMG(const double dW[4500], double LastY)
 
     //  Feature Extraction
     sig_rms_pad_fixed(*(double (*)[250])&dWF[250 * i], dv0);
-    for (i0 = 0; i0 < 250; i0++) {
-      b_sigRMS[i + 3 * i0] = dv0[i0];
-      sigRMS[i0] = b_sigRMS[i + 3 * i0];
+    for (ix = 0; ix < 250; ix++) {
+      b_sigRMS[i + 3 * ix] = dv0[ix];
+      sigRMS[ix] = b_sigRMS[i + 3 * ix];
     }
 
     sigRMSIntegral[i] = trapz(sigRMS);
 
     //  count above/below threshold:
-    for (i0 = 0; i0 < 250; i0++) {
-      b_dWF[i0] = (dWF[i0 + 250 * i] > 0.0025);
+    for (ix = 0; ix < 250; ix++) {
+      b_dWF[ix] = (dWF[ix + 250 * i] > 0.0025);
     }
 
     B[i] = (sum(b_dWF) > 0.0);
-    for (i0 = 0; i0 < 250; i0++) {
-      b_dWF[i0] = (dWF[i0 + 250 * i] < -0.0025);
+    for (ix = 0; ix < 250; ix++) {
+      b_dWF[ix] = (dWF[ix + 250 * i] < -0.0025);
     }
 
     B[i + 3] = (sum(b_dWF) > 0.0);
@@ -507,8 +490,9 @@ double classifyArmEMG(const double dW[4500], double LastY)
     //      dWDiffAvg(i,:) = mean(dWFdiff(:,i));
   }
 
+  //  B
   //  dWFRMS
-  //  sigRMSIntegral %Note that ch2 is >0.1 when closed.
+  // Note that ch2 is >0.1 when closed.
   if ((LastY == 1.0) && (sigRMSIntegral[1] > 0.1)) {
     // Check for Ripple
     Y = 1.0;
@@ -517,16 +501,87 @@ double classifyArmEMG(const double dW[4500], double LastY)
   }
 
   if (B[0] && B[1] && B[2] && B[4] && B[5]) {
-//    cfprintf();
+    //          fprintf('B/B2 True - Hand Closed. \n');
     Y = 1.0;
 
     //  Overrides
   }
 
-  //  KNN // Other classification:
-  //  F = [AbvTh, BelTh, dWAvg, dWFRMS, dWIntegral]; %, dWDiffAvg, dWDiffRMS, dWDiffInt 
-  //  F = F(:);
-  //  Y = 1.757569843;
+  //  AT this point, y is either 0 or 1 (open or closed)
+  //  T7B  = -0.0002;%Pinky Below Threshold
+  //  T7B2 = -0.00080;
+  //  T7A =  0.0008;  %Pinky Above Threshold
+  // Thresholds for RMS Integral
+  // 0.063;
+  SUMS = b_sum(sigRMSIntegral);
+
+  //  BASELINE NOISE LEVEL OF "SUMS"
+  if ((SUMS > 0.065) && (SUMS < 0.11)) {
+    B7_0 = true;
+  } else {
+    B7_0 = false;
+  }
+
+  for (i = 0; i < 3; i++) {
+    ix = i * 250;
+    ixstart = i * 250 + 1;
+    mtmp = dWF[ix];
+    if (rtIsNaN(dWF[ix])) {
+      b_ix = ixstart + 1;
+      exitg1 = false;
+      while ((!exitg1) && (b_ix <= ix + 250)) {
+        ixstart = b_ix;
+        if (!rtIsNaN(dWF[b_ix - 1])) {
+          mtmp = dWF[b_ix - 1];
+          exitg1 = true;
+        } else {
+          b_ix++;
+        }
+      }
+    }
+
+    if (ixstart < ix + 250) {
+      while (ixstart + 1 <= ix + 250) {
+        if (dWF[ixstart] > mtmp) {
+          mtmp = dWF[ixstart];
+        }
+
+        ixstart++;
+      }
+    }
+
+    COMBMAX[i] = mtmp;
+  }
+
+  //  V = COMBMAX - COMBMIN;
+  //  TH_V = 0.006;
+  if ((Y == 0.0) && (SUMS > 0.065)) {
+    // digit classification.
+    if (B7_0) {
+      //  B7_1(1) &&  %B7(2) && ( ~B7(6) ) &&
+      Y = 7.0;
+    } else if (SUMS < 0.2) {
+      if (sigRMSIntegral[1] > sigRMSIntegral[2]) {
+        // ch2 > ch3 in 99% of cases
+        Y = 6.0;
+      } else {
+        Y = 4.0;
+      }
+
+      //  could be 4 or 6, need to narrow down
+    } else {
+      if (b_sum(COMBMAX) > 0.006) {
+        Y = 5.0;
+      } else {
+        Y = 3.0;
+      }
+
+      //          if V > TH_V
+      //
+      //          end
+    }
+  }
+
   return Y;
 }
 
