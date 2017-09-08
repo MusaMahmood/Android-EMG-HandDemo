@@ -516,7 +516,7 @@ double classifyArmEMG(const double dW[4500], double LastY)
   SUMS = b_sum(sigRMSIntegral);
 
   //  BASELINE NOISE LEVEL OF "SUMS"
-  if ((SUMS > 0.065) && (SUMS < 0.11)) {
+  if ((SUMS > 0.08) && (SUMS < 0.11)) {
     B7_0 = true;
   } else {
     B7_0 = false;

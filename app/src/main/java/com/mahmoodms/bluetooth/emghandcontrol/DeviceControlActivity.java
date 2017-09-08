@@ -40,6 +40,8 @@ import com.androidplot.Plot;
 import com.androidplot.util.Redrawer;
 import com.androidplot.xy.SimpleXYSeries;
 import com.beele.BluetoothLe;
+import com.google.common.math.DoubleMath;
+import com.google.common.math.IntMath;
 import com.google.common.primitives.Bytes;
 import com.google.common.primitives.Doubles;
 import com.opencsv.CSVWriter;
@@ -712,7 +714,7 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
             if (dataBytesCh3 != null && dataBytesCh2 != null && dataBytesCh1 != null)
                 writeToDisk24(dataBytesCh1,dataBytesCh2,dataBytesCh3);
 
-            if(packetNumber%5==0 && packetNumber>41) {
+            if(packetNumber%10==0 && packetNumber>250) {
                 ClassifyTask classifyTask = new ClassifyTask();
                 Log.e(TAG,"["+String.valueOf(mNumberOfClassifierCalls+1)+"] CALLING CLASSIFIER FUNCTION!");
                 mNumberOfClassifierCalls++;
@@ -852,12 +854,12 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
         System.arraycopy(yfitarray, 1, yfitarray, 0, 4);
         //Add to end;
         yfitarray[4] = Y;
-        runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                mYfitTextView.setText(String.valueOf(Y));
-            }
-        });
+//        runOnUiThread(new Runnable() {
+//            @Override
+//            public void run() {
+//                mYfitTextView.setText(String.valueOf(Y));
+//            }
+//        });
         //Analyze:
         Log.e(TAG, " YfitArray: " + Arrays.toString(yfitarray));
         final boolean checkLastThreeMatches = lastThreeMatches(yfitarray);
@@ -865,17 +867,39 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
             //Get value:
             Log.e(TAG, "Found fit: " + String.valueOf(yfitarray[4]));
             final String s = "[" + String.valueOf(Y) + "]";
-
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+//                    mYfitTextView.setText(String.valueOf(Y));
+                    mYfitTextView.setText(s);
+                }
+            });
             // TODO: 4/27/2017 CONDITION :: CONTROL WHEELCHAIR
-            if(mConnectedThread!=null && Y!=0) {
-                int command;
-                if(Y==2) {
-                    command = 1;
-                } else if (Y==1) {
-                    command = 2;
-                } else
-                    command = (int)Y;
-                mConnectedThread.write(command);
+            if(mConnectedThread!=null) {
+                if(Y!=0) {
+                    int command;
+                    if(Y==2) {
+                        command = 1;
+                    } else if (Y==1) {
+                        command = 2;
+                    } else
+                        command = (int)Y;
+                    mConnectedThread.write(command);
+                }
+            }
+        } else {
+            boolean b = yfitarray[0] == 0.0 && yfitarray[1] == 0.0 && yfitarray[2] == 0.0
+                    && yfitarray[3] == 0.0 && yfitarray[4] == 0.0;
+            if (b && mConnectedThread!=null) {
+                final String s = "[" + String.valueOf(Y) + "]";
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+//                    mYfitTextView.setText(String.valueOf(Y));
+                        mYfitTextView.setText(s);
+                    }
+                });
+                mConnectedThread.write(1);
             }
         }
     }
