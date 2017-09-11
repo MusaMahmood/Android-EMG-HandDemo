@@ -908,6 +908,7 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
                 //Start the service discovery:
                 gatt.discoverServices();
                 startMonitoringRssiValue();
+                redrawer.start();
                 break;
             case BluetoothProfile.STATE_DISCONNECTED:
                 mConnected = false;
@@ -933,6 +934,7 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
                 updateConnectionState(getString(R.string.disconnected));
                 stopMonitoringRssiValue();
                 invalidateOptionsMenu();
+                redrawer.pause();
                 break;
             default:
                 break;

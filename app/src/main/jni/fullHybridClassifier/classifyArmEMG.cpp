@@ -5,7 +5,7 @@
 // File: classifyArmEMG.cpp
 //
 // MATLAB Coder version            : 3.3
-// C/C++ source code generated on  : 11-Sep-2017 00:13:56
+// C/C++ source code generated on  : 11-Sep-2017 01:00:54
 //
 
 // Include Files
@@ -544,7 +544,7 @@ double classifyArmEMG(const double dW[2250], double LastY)
     THR_EXC = false;
   }
 
-  if ((RMS[2] > RMS[0]) && (RMS[0] > RMS[1]) && (RMS[2] > 0.0003)) {
+  if ((RMS[2] > RMS[0]) && (RMS[2] > RMS[1]) && (RMS[2] > 0.0003)) {
     B7_4_C1 = true;
   } else {
     B7_4_C1 = false;
@@ -580,12 +580,10 @@ double classifyArmEMG(const double dW[2250], double LastY)
     if (B7_4_C1) {
       //  B7_1(1) &&  %B7(2) && ( ~B7(6) ) &&
       // can be 7 or 4
-      if (RMS[0] > 0.0003) {
+      if (RMS[2] - RMS[0] > 0.00025) {
         Y = 7.0;
       } else {
-        if (B4) {
-          Y = 4.0;
-        }
+        Y = 4.0;
       }
     } else if (B6) {
       Y = 6.0;
