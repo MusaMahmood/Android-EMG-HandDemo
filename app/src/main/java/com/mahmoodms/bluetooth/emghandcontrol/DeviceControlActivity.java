@@ -714,7 +714,7 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
             if (dataBytesCh3 != null && dataBytesCh2 != null && dataBytesCh1 != null)
                 writeToDisk24(dataBytesCh1,dataBytesCh2,dataBytesCh3);
 
-            if(packetNumber%10==0 && packetNumber>250) {
+            if(packetNumber%10==0 && packetNumber>200) {
                 ClassifyTask classifyTask = new ClassifyTask();
                 Log.e(TAG,"["+String.valueOf(mNumberOfClassifierCalls+1)+"] CALLING CLASSIFIER FUNCTION!");
                 mNumberOfClassifierCalls++;
@@ -807,59 +807,11 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
         }
     }
 
-    private double findGraphMin(SimpleXYSeries s) {
-        if (s.size() > 0) {
-            double min = (double) s.getY(0);
-            for (int i = 1; i < s.size(); i++) {
-                double a = (double) s.getY(i);
-                if (a < min) {
-                    min = a;
-                }
-            }
-            return min;
-        } else {
-            return 0.0;
-        }
-    }
-
-    private void executeCommand(int command) {
-        byte[] bytes = new byte[1];
-        switch (command) {
-            case 0:
-                bytes[0] = (byte) 0x00;
-                break;
-            case 1:
-                bytes[0] = (byte) 0x01; //Stop
-                break;
-            case 2:
-                bytes[0] = (byte) 0xF0; //?
-                break;
-            case 3:
-                bytes[0] = (byte) 0x0F;
-                break;
-            case 4:
-                bytes[0] = (byte) 0xFF;
-                // TODO: 6/27/2017 Disconnect instead of reverse?
-                break;
-            default:
-                break;
-        }
-        if (mLedService != null) {
-            mBluetoothLe.writeCharacteristic(mBluetoothGattArray[mWheelchairGattIndex], mLedService.getCharacteristic(AppConstant.CHAR_WHEELCHAIR_CONTROL), bytes);
-        }
-    }
-
     private void processClassifiedData(final double Y) {
         //Shift backwards:
         System.arraycopy(yfitarray, 1, yfitarray, 0, 4);
         //Add to end;
         yfitarray[4] = Y;
-//        runOnUiThread(new Runnable() {
-//            @Override
-//            public void run() {
-//                mYfitTextView.setText(String.valueOf(Y));
-//            }
-//        });
         //Analyze:
         Log.e(TAG, " YfitArray: " + Arrays.toString(yfitarray));
         final boolean checkLastThreeMatches = lastThreeMatches(yfitarray);
@@ -890,25 +842,17 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
         } else {
             boolean b = yfitarray[0] == 0.0 && yfitarray[1] == 0.0 && yfitarray[2] == 0.0
                     && yfitarray[3] == 0.0 && yfitarray[4] == 0.0;
-            if (b && mConnectedThread!=null) {
+            if (b) {
                 final String s = "[" + String.valueOf(Y) + "]";
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-//                    mYfitTextView.setText(String.valueOf(Y));
                         mYfitTextView.setText(s);
                     }
                 });
-                mConnectedThread.write(1);
+                if(mConnectedThread!=null)
+                    mConnectedThread.write(1);
             }
-        }
-    }
-
-    private void writeToDisk24(final double ch1, final double ch2, final double ch3) {
-        try {
-            exportFileWithClass(ch1, ch2, ch3);
-        } catch (IOException e) {
-            Log.e("IOException", e.toString());
         }
     }
 
@@ -1077,23 +1021,6 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
             }
         });
     }
-
-//    private void updateBatteryStatus(final int percent, final String status) {
-//        runOnUiThread(new Runnable() {
-//            @Override
-//            public void run() {
-//                if (percent <= batteryWarning) {
-//                    mBatteryLevel.setTextColor(Color.RED);
-//                    mBatteryLevel.setTypeface(null, Typeface.BOLD);
-//                    Toast.makeText(getApplicationContext(), "Charge Battery, Battery Low " + status, Toast.LENGTH_SHORT).show();
-//                } else {
-//                    mBatteryLevel.setTextColor(Color.GREEN);
-//                    mBatteryLevel.setTypeface(null, Typeface.BOLD);
-//                }
-//                mBatteryLevel.setText(status);
-//            }
-//        });
-//    }
 
     private void uiRssiUpdate(final int rssi) {
         runOnUiThread(new Runnable() {

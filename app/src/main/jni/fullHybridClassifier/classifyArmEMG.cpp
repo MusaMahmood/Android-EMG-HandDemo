@@ -493,7 +493,7 @@ double classifyArmEMG(const double dW[4500], double LastY)
   //  B
   //  dWFRMS
   // Note that ch2 is >0.1 when closed.
-  if ((LastY == 1.0) && (sigRMSIntegral[1] > 0.1)) {
+  if ((LastY == 1.0) && (sigRMSIntegral[1] > 0.035)) {
     // Check for Ripple
     Y = 1.0;
 
@@ -516,7 +516,7 @@ double classifyArmEMG(const double dW[4500], double LastY)
   SUMS = b_sum(sigRMSIntegral);
 
   //  BASELINE NOISE LEVEL OF "SUMS"
-  if ((SUMS > 0.08) && (SUMS < 0.11)) {
+  if ((SUMS > 0.08) && (SUMS < 0.1)) {
     B7_0 = true;
   } else {
     B7_0 = false;
@@ -555,7 +555,7 @@ double classifyArmEMG(const double dW[4500], double LastY)
 
   //  V = COMBMAX - COMBMIN;
   //  TH_V = 0.006;
-  if ((Y == 0.0) && (SUMS > 0.065)) {
+  /*if ((Y == 0.0) && (SUMS > 0.065)) {
     // digit classification.
     if (B7_0) {
       //  B7_1(1) &&  %B7(2) && ( ~B7(6) ) &&
@@ -580,7 +580,7 @@ double classifyArmEMG(const double dW[4500], double LastY)
       //
       //          end
     }
-  }
+  }*/
 
   return Y;
 }
