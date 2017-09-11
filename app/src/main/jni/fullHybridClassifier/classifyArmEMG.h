@@ -5,7 +5,7 @@
 // File: classifyArmEMG.h
 //
 // MATLAB Coder version            : 3.3
-// C/C++ source code generated on  : 08-Sep-2017 00:32:39
+// C/C++ source code generated on  : 11-Sep-2017 00:13:56
 //
 #ifndef CLASSIFYARMEMG_H
 #define CLASSIFYARMEMG_H
@@ -20,7 +20,7 @@
 #include "classifyArmEMG_types.h"
 
 // Function Declarations
-extern double classifyArmEMG(const double dW[4500], double LastY);
+extern double classifyArmEMG(const double dW[2250], double LastY);
 extern void classifyArmEMG_initialize();
 extern void classifyArmEMG_terminate();
 

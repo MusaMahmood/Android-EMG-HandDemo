@@ -60,20 +60,6 @@
             android:text="BT_Conn"
             android:textColor="#000000" />
 
-        <Button
-            android:id="@+id/b1"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="1" />
-
-        <Button
-            android:id="@+id/b2"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="2" />
-
         <TextView
             android:id="@+id/classifierOutput"
             android:layout_width="wrap_content"

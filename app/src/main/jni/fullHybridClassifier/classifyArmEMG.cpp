@@ -5,7 +5,7 @@
 // File: classifyArmEMG.cpp
 //
 // MATLAB Coder version            : 3.3
-// C/C++ source code generated on  : 08-Sep-2017 00:32:39
+// C/C++ source code generated on  : 11-Sep-2017 00:13:56
 //
 
 // Include Files
@@ -13,19 +13,18 @@
 #include "classifyArmEMG.h"
 
 // Function Declarations
-static void b_filter(const double b[4], const double a[4], const double x[1518],
-                     const double zi[3], double y[1518]);
-static void b_filtfilt(const double x_in[1500], double y_out[1500]);
-static void b_flipud(double x[1518]);
-static double b_sum(const double x[3]);
-static void filter(const double b[7], const double a[7], const double x[1536],
-                   const double zi[6], double y[1536]);
-static void filtfilt(const double x_in[1500], double y_out[1500]);
-static void flipud(double x[1536]);
+static void b_filter(const double b[4], const double a[4], const double x[768],
+                     const double zi[3], double y[768]);
+static void b_filtfilt(const double x_in[750], double y_out[750]);
+static void b_flipud(double x[768]);
+static void filter(const double b[7], const double a[7], const double x[786],
+                   const double zi[6], double y[786]);
+static void filtfilt(const double x_in[750], double y_out[750]);
+static void flipud(double x[786]);
 static double mean(const double x_data[], const int x_size[1]);
 static void power(const double a[259], double y[259]);
+static double rms(const double x[250]);
 static void sig_rms_pad_fixed(const double b_signal[250], double y[250]);
-static double sum(const boolean_T x[250]);
 static double trapz(const double x[250]);
 
 // Function Definitions
@@ -33,13 +32,13 @@ static double trapz(const double x[250]);
 //
 // Arguments    : const double b[4]
 //                const double a[4]
-//                const double x[1518]
+//                const double x[768]
 //                const double zi[3]
-//                double y[1518]
+//                double y[768]
 // Return Type  : void
 //
-static void b_filter(const double b[4], const double a[4], const double x[1518],
-                     const double zi[3], double y[1518])
+static void b_filter(const double b[4], const double a[4], const double x[768],
+                     const double zi[3], double y[768])
 {
   int k;
   int naxpy;
@@ -49,9 +48,9 @@ static void b_filter(const double b[4], const double a[4], const double x[1518],
     y[k] = zi[k];
   }
 
-  memset(&y[3], 0, 1515U * sizeof(double));
-  for (k = 0; k < 1518; k++) {
-    naxpy = 1518 - k;
+  memset(&y[3], 0, 765U * sizeof(double));
+  for (k = 0; k < 768; k++) {
+    naxpy = 768 - k;
     if (!(naxpy < 4)) {
       naxpy = 4;
     }
@@ -60,7 +59,7 @@ static void b_filter(const double b[4], const double a[4], const double x[1518],
       y[k + j] += x[k] * b[j];
     }
 
-    naxpy = 1517 - k;
+    naxpy = 767 - k;
     if (!(naxpy < 3)) {
       naxpy = 3;
     }
@@ -73,96 +72,80 @@ static void b_filter(const double b[4], const double a[4], const double x[1518],
 }
 
 //
-// Arguments    : const double x_in[1500]
-//                double y_out[1500]
+// Arguments    : const double x_in[750]
+//                double y_out[750]
 // Return Type  : void
 //
-static void b_filtfilt(const double x_in[1500], double y_out[1500])
+static void b_filtfilt(const double x_in[750], double y_out[750])
 {
   double d2;
   double d3;
   int i;
-  double y[1518];
-  double b_y[1518];
+  double y[768];
+  double b_y[768];
   double a[3];
-  static const double b_a[3] = { -0.97517981165665291, 1.9503596233122031,
-    -0.97517981165557921 };
+  static const double b_a[3] = { -0.95097188792826548, 1.9019437758560462,
+    -0.95097188792780118 };
 
-  static const double dv3[4] = { 0.975179811634754, -2.92553943490426,
-    2.92553943490426, -0.975179811634754 };
+  static const double dv3[4] = { 0.950971887923409, -2.85291566377023,
+    2.85291566377023, -0.950971887923409 };
 
-  static const double dv4[4] = { 1.0, -2.94973583970635, 2.90072698835544,
-    -0.950975665016249 };
+  static const double dv4[4] = { 1.0, -2.89947959461186, 2.803947977383,
+    -0.904347531392409 };
 
   d2 = 2.0 * x_in[0];
-  d3 = 2.0 * x_in[1499];
+  d3 = 2.0 * x_in[749];
   for (i = 0; i < 9; i++) {
     y[i] = d2 - x_in[9 - i];
   }
 
-  memcpy(&y[9], &x_in[0], 1500U * sizeof(double));
+  memcpy(&y[9], &x_in[0], 750U * sizeof(double));
   for (i = 0; i < 9; i++) {
-    y[i + 1509] = d3 - x_in[1498 - i];
+    y[i + 759] = d3 - x_in[748 - i];
   }
 
   for (i = 0; i < 3; i++) {
     a[i] = b_a[i] * y[0];
   }
 
-  memcpy(&b_y[0], &y[0], 1518U * sizeof(double));
+  memcpy(&b_y[0], &y[0], 768U * sizeof(double));
   b_filter(dv3, dv4, b_y, a, y);
   b_flipud(y);
   for (i = 0; i < 3; i++) {
     a[i] = b_a[i] * y[0];
   }
 
-  memcpy(&b_y[0], &y[0], 1518U * sizeof(double));
+  memcpy(&b_y[0], &y[0], 768U * sizeof(double));
   b_filter(dv3, dv4, b_y, a, y);
   b_flipud(y);
-  memcpy(&y_out[0], &y[9], 1500U * sizeof(double));
+  memcpy(&y_out[0], &y[9], 750U * sizeof(double));
 }
 
 //
-// Arguments    : double x[1518]
+// Arguments    : double x[768]
 // Return Type  : void
 //
-static void b_flipud(double x[1518])
+static void b_flipud(double x[768])
 {
   int i;
   double xtmp;
-  for (i = 0; i < 759; i++) {
+  for (i = 0; i < 384; i++) {
     xtmp = x[i];
-    x[i] = x[1517 - i];
-    x[1517 - i] = xtmp;
+    x[i] = x[767 - i];
+    x[767 - i] = xtmp;
   }
-}
-
-//
-// Arguments    : const double x[3]
-// Return Type  : double
-//
-static double b_sum(const double x[3])
-{
-  double y;
-  int k;
-  y = x[0];
-  for (k = 0; k < 2; k++) {
-    y += x[k + 1];
-  }
-
-  return y;
 }
 
 //
 // Arguments    : const double b[7]
 //                const double a[7]
-//                const double x[1536]
+//                const double x[786]
 //                const double zi[6]
-//                double y[1536]
+//                double y[786]
 // Return Type  : void
 //
-static void filter(const double b[7], const double a[7], const double x[1536],
-                   const double zi[6], double y[1536])
+static void filter(const double b[7], const double a[7], const double x[786],
+                   const double zi[6], double y[786])
 {
   int k;
   int naxpy;
@@ -172,9 +155,9 @@ static void filter(const double b[7], const double a[7], const double x[1536],
     y[k] = zi[k];
   }
 
-  memset(&y[6], 0, 1530U * sizeof(double));
-  for (k = 0; k < 1536; k++) {
-    naxpy = 1536 - k;
+  memset(&y[6], 0, 780U * sizeof(double));
+  for (k = 0; k < 786; k++) {
+    naxpy = 786 - k;
     if (!(naxpy < 7)) {
       naxpy = 7;
     }
@@ -183,7 +166,7 @@ static void filter(const double b[7], const double a[7], const double x[1536],
       y[k + j] += x[k] * b[j];
     }
 
-    naxpy = 1535 - k;
+    naxpy = 785 - k;
     if (!(naxpy < 6)) {
       naxpy = 6;
     }
@@ -196,17 +179,17 @@ static void filter(const double b[7], const double a[7], const double x[1536],
 }
 
 //
-// Arguments    : const double x_in[1500]
-//                double y_out[1500]
+// Arguments    : const double x_in[750]
+//                double y_out[750]
 // Return Type  : void
 //
-static void filtfilt(const double x_in[1500], double y_out[1500])
+static void filtfilt(const double x_in[750], double y_out[750])
 {
   double d0;
   double d1;
   int i;
-  double y[1536];
-  double b_y[1536];
+  double y[786];
+  double b_y[786];
   double a[6];
   static const double b_a[6] = { 0.22275347859979613, 0.16989850397289177,
     0.33991371041886664, 0.34619414482388972, 0.12656228167104569,
@@ -221,45 +204,45 @@ static void filtfilt(const double x_in[1500], double y_out[1500])
   };
 
   d0 = 2.0 * x_in[0];
-  d1 = 2.0 * x_in[1499];
+  d1 = 2.0 * x_in[749];
   for (i = 0; i < 18; i++) {
     y[i] = d0 - x_in[18 - i];
   }
 
-  memcpy(&y[18], &x_in[0], 1500U * sizeof(double));
+  memcpy(&y[18], &x_in[0], 750U * sizeof(double));
   for (i = 0; i < 18; i++) {
-    y[i + 1518] = d1 - x_in[1498 - i];
+    y[i + 768] = d1 - x_in[748 - i];
   }
 
   for (i = 0; i < 6; i++) {
     a[i] = b_a[i] * y[0];
   }
 
-  memcpy(&b_y[0], &y[0], 1536U * sizeof(double));
+  memcpy(&b_y[0], &y[0], 786U * sizeof(double));
   filter(dv1, dv2, b_y, a, y);
   flipud(y);
   for (i = 0; i < 6; i++) {
     a[i] = b_a[i] * y[0];
   }
 
-  memcpy(&b_y[0], &y[0], 1536U * sizeof(double));
+  memcpy(&b_y[0], &y[0], 786U * sizeof(double));
   filter(dv1, dv2, b_y, a, y);
   flipud(y);
-  memcpy(&y_out[0], &y[18], 1500U * sizeof(double));
+  memcpy(&y_out[0], &y[18], 750U * sizeof(double));
 }
 
 //
-// Arguments    : double x[1536]
+// Arguments    : double x[786]
 // Return Type  : void
 //
-static void flipud(double x[1536])
+static void flipud(double x[786])
 {
   int i;
   double xtmp;
-  for (i = 0; i < 768; i++) {
+  for (i = 0; i < 393; i++) {
     xtmp = x[i];
-    x[i] = x[1535 - i];
-    x[1535 - i] = xtmp;
+    x[i] = x[785 - i];
+    x[785 - i] = xtmp;
   }
 }
 
@@ -296,6 +279,27 @@ static void power(const double a[259], double y[259])
   for (k = 0; k < 259; k++) {
     y[k] = a[k] * a[k];
   }
+}
+
+//
+// Arguments    : const double x[250]
+// Return Type  : double
+//
+static double rms(const double x[250])
+{
+  double y;
+  int i;
+  double b_x[250];
+  for (i = 0; i < 250; i++) {
+    b_x[i] = x[i] * x[i];
+  }
+
+  y = b_x[0];
+  for (i = 0; i < 249; i++) {
+    y += b_x[i + 1];
+  }
+
+  return std::sqrt(y / 250.0);
 }
 
 //
@@ -371,22 +375,6 @@ static void sig_rms_pad_fixed(const double b_signal[250], double y[250])
 }
 
 //
-// Arguments    : const boolean_T x[250]
-// Return Type  : double
-//
-static double sum(const boolean_T x[250])
-{
-  double y;
-  int k;
-  y = x[0];
-  for (k = 0; k < 249; k++) {
-    y += (double)x[k + 1];
-  }
-
-  return y;
-}
-
-//
 // Arguments    : const double x[250]
 // Return Type  : double
 //
@@ -409,53 +397,54 @@ static double trapz(const double x[250])
 }
 
 //
-// UNTITLED3 Summary of this function goes here
+// , RMS, COMBMAX, sigRMSIntegral
 //    Detailed explanation goes here
 //  FILTER:
 // bandstop
-// Arguments    : const double dW[4500]
+// Arguments    : const double dW[2250]
 //                double LastY
 // Return Type  : double
 //
-double classifyArmEMG(const double dW[4500], double LastY)
+double classifyArmEMG(const double dW[2250], double LastY)
 {
   double Y;
-  int ix;
   int i;
-  boolean_T B[6];
-  double dWF0[4500];
-  double b_dWF0[1500];
+  double dWF0[2250];
   double sigRMSIntegral[3];
+  double b_dWF0[750];
+  double RMS[3];
   double dWF[750];
   double dv0[250];
+  int ix;
   double sigRMS[250];
   double b_sigRMS[750];
-  boolean_T b_dWF[250];
-  double SUMS;
-  boolean_T B7_0;
   int ixstart;
   double mtmp;
   int b_ix;
   boolean_T exitg1;
-  double COMBMAX[3];
+  boolean_T THR_EXC;
+  boolean_T B7_4_C1;
+  boolean_T B6;
+  boolean_T B5;
+  boolean_T B4;
+  boolean_T B3;
 
   // classifyArmEMG
-  Y = 0.0;
-
   //  Wn = [55. 65]*2/Fs;
   //  [b,a] = butter(3, Wn, 'stop');
   //  Wn2 = (1)*2/Fs; %high pass:
   //  [b1,a1] = butter(3, Wn2, 'high');
+  //  2Hz High Pass:
   //  LAST 1s / 6s
-  for (ix = 0; ix < 6; ix++) {
-    B[ix] = false;
-  }
-
+  //  L = [];
+  //  P = [];
   for (i = 0; i < 3; i++) {
-    filtfilt(*(double (*)[1500])&dW[1500 * i], *(double (*)[1500])&dWF0[1500 * i]);
-    memcpy(&b_dWF0[0], &dWF0[i * 1500], 1500U * sizeof(double));
-    b_filtfilt(b_dWF0, *(double (*)[1500])&dWF0[1500 * i]);
-    memcpy(&dWF[i * 250], &dWF0[i * 1500 + 1250], 250U * sizeof(double));
+    filtfilt(*(double (*)[750])&dW[750 * i], *(double (*)[750])&dWF0[750 * i]);
+    memcpy(&b_dWF0[0], &dWF0[i * 750], 750U * sizeof(double));
+    b_filtfilt(b_dWF0, *(double (*)[750])&dWF0[750 * i]);
+
+    //      dWF(:,i) = dWF0(end-249:end,i);
+    memcpy(&dWF[i * 250], &dWF0[i * 750 + 375], 250U * sizeof(double));
 
     //  Feature Extraction
     sig_rms_pad_fixed(*(double (*)[250])&dWF[250 * i], dv0);
@@ -465,63 +454,41 @@ double classifyArmEMG(const double dW[4500], double LastY)
     }
 
     sigRMSIntegral[i] = trapz(sigRMS);
+    RMS[i] = rms(*(double (*)[250])&dWF[250 * i]);
 
     //  count above/below threshold:
-    for (ix = 0; ix < 250; ix++) {
-      b_dWF[ix] = (dWF[ix + 250 * i] > 0.0025);
+  }
+
+  if (LastY == 1.0) {
+    if (sigRMSIntegral[0] > 0.035) {
+      // Check for Ripple
+      Y = 1.0;
+
+      // hand still closed
+    } else {
+      Y = 0.0;
     }
-
-    B[i] = (sum(b_dWF) > 0.0);
-    for (ix = 0; ix < 250; ix++) {
-      b_dWF[ix] = (dWF[ix + 250 * i] < -0.0025);
+  } else if ((LastY == 7.0) || (LastY == 4.0)) {
+    if (RMS[2] >= 0.0002) {
+      Y = LastY;
+    } else {
+      Y = 0.0;
     }
-
-    B[i + 3] = (sum(b_dWF) > 0.0);
-
-    //      dWFRMS(i,:) = rms(dWF(:,i));
-    //      dWAvg(i,:) = mean(dWF(:,i));
-    //      dWIntegral(i,:) = trapz(dWF(:,i));
-    //      dWaves = cwt_haar(dWF(:,i));
-    //      Scalogram = abs(dWaves.*dWaves);
-    //      E(i,:) = sum(Scalogram(:));
-    //      dWFdiff(:,i) = diff(dWF(:,i));
-    //      dWDiffInt(i,:) = trapz(dWFdiff(:,i));
-    //      dWDiffRMS(i,:) = rms(dWFdiff(:,i));
-    //      dWDiffAvg(i,:) = mean(dWFdiff(:,i));
-  }
-
-  //  B
-  //  dWFRMS
-  // Note that ch2 is >0.1 when closed.
-  if ((LastY == 1.0) && (sigRMSIntegral[1] > 0.035)) {
-    // Check for Ripple
-    Y = 1.0;
-
-    // hand still closed
-  }
-
-  if (B[0] && B[1] && B[2] && B[4] && B[5]) {
-    //          fprintf('B/B2 True - Hand Closed. \n');
-    Y = 1.0;
-
-    //  Overrides
-  }
-
-  //  AT this point, y is either 0 or 1 (open or closed)
-  //  T7B  = -0.0002;%Pinky Below Threshold
-  //  T7B2 = -0.00080;
-  //  T7A =  0.0008;  %Pinky Above Threshold
-  // Thresholds for RMS Integral
-  // 0.063;
-  SUMS = b_sum(sigRMSIntegral);
-
-  //  BASELINE NOISE LEVEL OF "SUMS"
-  if ((SUMS > 0.08) && (SUMS < 0.1)) {
-    B7_0 = true;
+  } else if ((LastY == 6.0) || (LastY == 5.0) || (LastY == 3.0)) {
+    if (RMS[0] >= 0.00012) {
+      Y = LastY;
+    } else {
+      Y = 0.0;
+    }
   } else {
-    B7_0 = false;
+    Y = 0.0;
   }
 
+  //  if (B(1)&&B(2)&&B(3))
+  //      if (B(5) && B(6))
+  //          Y = 1; % Overrides
+  //      end
+  //  end
   for (i = 0; i < 3; i++) {
     ix = i * 250;
     ixstart = i * 250 + 1;
@@ -550,38 +517,99 @@ double classifyArmEMG(const double dW[4500], double LastY)
       }
     }
 
-    COMBMAX[i] = mtmp;
+    sigRMSIntegral[i] = mtmp;
   }
 
+  if ((sigRMSIntegral[0] > 0.002) && (sigRMSIntegral[1] > 0.002) &&
+      (sigRMSIntegral[2] > 0.002)) {
+    Y = 1.0;
+  }
+
+  //  AT this point, y is either 0 or 1 (open or closed)
+  // Thresholds for RMS Integral
+  //  TH_RMS_0 = 0.065;
+  //  SUMS = sum(sigRMSIntegral);
+  //  DETECT = SUMS > TH_RMS_0; % BASELINE NOISE LEVEL OF "SUMS"
+  //  MAX_TOTAL = sum(COMBMAX);
+  //  COMBMIN = min(dWF);
   //  V = COMBMAX - COMBMIN;
-  //  TH_V = 0.006;
-  /*if ((Y == 0.0) && (SUMS > 0.065)) {
+  //  B7_0 = RMS(3) > 0.85E-3 && (RMS(1) < 0.5E-3) && (RMS(2) < 0.5E-3) && COMBMAX(3)>0.0025; 
+  //  B6_0 = RMS(3) > 0.33E-3 && (RMS(1)/RMS(3) > 0.59);
+  //  B5_3 = RMS(2) > 0.22E-3;
+  //  B4_0 = RMS(3) > 0.4E-3 && (RMS(2)/RMS(3) < 0.25);
+  //  % NEW
+  if ((RMS[0] > 0.00015) || (RMS[1] > 0.00015) || (RMS[2] > 0.00015)) {
+    THR_EXC = true;
+  } else {
+    THR_EXC = false;
+  }
+
+  if ((RMS[2] > RMS[0]) && (RMS[0] > RMS[1]) && (RMS[2] > 0.0003)) {
+    B7_4_C1 = true;
+  } else {
+    B7_4_C1 = false;
+  }
+
+  if ((RMS[0] > RMS[2]) && (RMS[2] > RMS[1])) {
+    B6 = true;
+  } else {
+    B6 = false;
+  }
+
+  if ((RMS[0] > RMS[1]) && (RMS[1] > RMS[2]) && (RMS[0] - RMS[2] < 0.00029)) {
+    B5 = true;
+  } else {
+    B5 = false;
+  }
+
+  if ((RMS[0] - RMS[1] < 3.4E-5) && (RMS[0] < 0.0003)) {
+    B4 = true;
+  } else {
+    B4 = false;
+  }
+
+  if ((RMS[0] > RMS[1]) && (sigRMSIntegral[2] < 0.0007)) {
+    B3 = true;
+  } else {
+    B3 = false;
+  }
+
+  if ((Y == 0.0) && THR_EXC) {
+    //  && DETECT
     // digit classification.
-    if (B7_0) {
+    if (B7_4_C1) {
       //  B7_1(1) &&  %B7(2) && ( ~B7(6) ) &&
-      Y = 7.0;
-    } else if (SUMS < 0.2) {
-      if (sigRMSIntegral[1] > sigRMSIntegral[2]) {
-        // ch2 > ch3 in 99% of cases
-        Y = 6.0;
+      // can be 7 or 4
+      if (RMS[0] > 0.0003) {
+        Y = 7.0;
       } else {
-        Y = 4.0;
+        if (B4) {
+          Y = 4.0;
+        }
       }
+    } else if (B6) {
+      Y = 6.0;
+    } else if (B5) {
+      Y = 5.0;
+    } else if (B4) {
+      Y = 4.0;
+    } else if (B3) {
+      Y = 3.0;
 
-      //  could be 4 or 6, need to narrow down
-    } else {
-      if (b_sum(COMBMAX) > 0.006) {
-        Y = 5.0;
-      } else {
-        Y = 3.0;
-      }
-
-      //          if V > TH_V
-      //
+      //      elseif B5_3
+      //          if (COMBMAX(2) > 0.002)
+      //              Y = 5;
+      //          else
+      //              Y = 3;
       //          end
+    } else {
+      Y = 0.0;
     }
-  }*/
+  }
 
+  //  KNN // Other classification:
+  //  F = [ sigRMSIntegral, COMBMAX, COMBMIN, V ];
+  //  F = F(:);
   return Y;
 }
 

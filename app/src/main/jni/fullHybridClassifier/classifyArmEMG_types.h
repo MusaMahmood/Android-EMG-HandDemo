@@ -5,7 +5,7 @@
 // File: classifyArmEMG_types.h
 //
 // MATLAB Coder version            : 3.3
-// C/C++ source code generated on  : 08-Sep-2017 00:32:39
+// C/C++ source code generated on  : 11-Sep-2017 00:13:56
 //
 #ifndef CLASSIFYARMEMG_TYPES_H
 #define CLASSIFYARMEMG_TYPES_H

@@ -148,8 +148,8 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
         Intent intent = getIntent();
         deviceMacAddresses = intent.getStringArrayExtra(MainActivity.INTENT_DEVICES_KEY);
         String[] deviceDisplayNames = intent.getStringArrayExtra(MainActivity.INTENT_DEVICES_NAMES);
-        String[] intentDelayLength = intent.getStringArrayExtra(MainActivity.INTENT_DELAY_LENGTH);
-        mSecondsBetweenStimulus = Integer.valueOf(intentDelayLength[0]);
+//        String[] intentDelayLength = intent.getStringArrayExtra(MainActivity.INTENT_DELAY_LENGTH);
+//        mSecondsBetweenStimulus = Integer.valueOf(intentDelayLength[0]);
         mDeviceName = deviceDisplayNames[0];
         mDeviceAddress = deviceMacAddresses[0];
         Log.d(TAG, "Device Names: " + Arrays.toString(deviceDisplayNames));
@@ -198,9 +198,9 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
         checkBTState();
 
         // Initialize our XYPlot reference:
-        mGraphAdapterCh1 = new GraphAdapter(1000, "EMG Data Ch 1", false, false, Color.BLUE, 1500); //Color.parseColor("#19B52C") also, RED, BLUE, etc.
-        mGraphAdapterCh2 = new GraphAdapter(1000, "EMG Data Ch 2", false, false, Color.RED, 1500); //Color.parseColor("#19B52C") also, RED, BLUE, etc.
-        mGraphAdapterCh3 = new GraphAdapter(1000, "EMG Data Ch 3", false, false, Color.GREEN, 1500); //Color.parseColor("#19B52C") also, RED, BLUE, etc.
+        mGraphAdapterCh1 = new GraphAdapter(1000, "EMG Data Ch 1", false, false, Color.BLUE, 750); //Color.parseColor("#19B52C") also, RED, BLUE, etc.
+        mGraphAdapterCh2 = new GraphAdapter(1000, "EMG Data Ch 2", false, false, Color.RED, 750); //Color.parseColor("#19B52C") also, RED, BLUE, etc.
+        mGraphAdapterCh3 = new GraphAdapter(1000, "EMG Data Ch 3", false, false, Color.GREEN, 750); //Color.parseColor("#19B52C") also, RED, BLUE, etc.
         //PLOT CH1 By default
         mGraphAdapterCh1.plotData = true;
         mGraphAdapterCh2.plotData = true;
@@ -273,24 +273,6 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
             @Override
             public void onClick(View view) {
                 connectToClassicBTHand();
-            }
-        });
-        Button b1 = (Button) findViewById(R.id.b1);
-        Button b2 = (Button) findViewById(R.id.b2);
-        b1.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                if(mConnectedThread!=null)
-                    mConnectedThread.write(1);
-                mEMGClass = 1;
-            }
-        });
-        b2.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                if(mConnectedThread!=null)
-                    mConnectedThread.write(2);
-                mEMGClass = 2;
             }
         });
         mMediaBeep = MediaPlayer.create(this, R.raw.beep_01a);
@@ -605,7 +587,7 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
     private int mAlertBeepCounter = 1;
     private int mAlertBeepCounterSwitch = 1;
     private int mClassifierCounter = 0;
-    private int mSecondsBetweenStimulus = 0;
+//    private int mSecondsBetweenStimulus = 0;
     //EOG:
     // Classification
     private double[] yfitarray = new double[5];
@@ -631,7 +613,6 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
                 eeg_ch1_data_on = true;
             }
             getDataRateBytes(dataBytesCh1.length);
-//            if(mEEGConnected) mGraphAdapterCh1.addDataPoints(dataEEGBytes,3,packetNumber);
             if(mEEGConnected) {
                 if(bufferCh1!=null) {
                     //concatenate
@@ -721,10 +702,10 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
                 classifyTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
             }
         }
-        if (mSecondsBetweenStimulus != 0) {
-            if (Math.floor(0.004*dataNumCh1) == (mSecondsBetweenStimulus * mAlertBeepCounter)) {
-                mAlertBeepCounter++;
-                int temp = mAlertBeepCounterSwitch;
+//        if (mSecondsBetweenStimulus != 0) {
+//            if (Math.floor(0.004*dataNumCh1) == (mSecondsBetweenStimulus * mAlertBeepCounter)) {
+//                mAlertBeepCounter++;
+//                int temp = mAlertBeepCounterSwitch;
 //                switch (temp) {
 //                    case 1:
 //                        mEMGClass = 0;
@@ -773,8 +754,8 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
 //                } else {
 //                    mEMGClass = 1;
 //                }
-            }
-        }
+//            }
+//        }
 
         runOnUiThread(new Runnable() {
             @Override
