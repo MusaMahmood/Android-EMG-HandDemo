@@ -239,7 +239,7 @@ public class MainActivity extends Activity {
         super.onResume();
         /*
          * Ensures Bluetooth is enabled on the device - if not enabled - fire intent to display a
-         * dialog to ask permissioo enable
+         * dialog to ask permission enable
          */
         if(checkPermissions()) {
             if (!mBluetoothAdapter.isEnabled()) {

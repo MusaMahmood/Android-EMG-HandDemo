@@ -41,18 +41,18 @@ import com.androidplot.util.Redrawer;
 import com.beele.BluetoothLe;
 import com.google.common.primitives.Bytes;
 import com.google.common.primitives.Doubles;
+import com.opencsv.CSVReader;
 import com.opencsv.CSVWriter;
 
 import java.io.File;
+import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.lang.reflect.Method;
-import java.nio.ByteBuffer;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -82,7 +82,6 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
     private String[] deviceMacAddresses = null;
     private BluetoothDevice[] mBluetoothDeviceArray = null;
     private BluetoothGatt[] mBluetoothGattArray = null;
-    private BluetoothGattService mLedService = null;
     private int mWheelchairGattIndex;
 
     private boolean mEEGConnected = false;
@@ -118,8 +117,8 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
     MediaPlayer mMediaBeep;
 
     //Bluetooth Classic - For Robotic Hand
-    Handler mHandler;
-    final int RECIEVE_MESSAGE = 1;        // Status  for Handler
+    public static Handler mHandler;
+    public static final int RECIEVE_MESSAGE = 1;        // Status  for Handler
     private BluetoothAdapter btAdapter = null;
     private BluetoothSocket btSocket = null;
     private StringBuilder sb = new StringBuilder();
@@ -130,8 +129,14 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
     // SPP UUID service
     private static final UUID MY_UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
 
-    // MAC-address of Bluetooth module (you must edit this line)
+    // MAC-address of Bluetooth module (you must edit this line to change)
     private static String address = "30:14:12:17:21:88";
+
+    //File Save Variables:
+    private boolean fileSaveInitialized = false;
+    private CSVWriter csvWriter;
+    private File file;
+    private File trainingDataFile;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -275,6 +280,10 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
                 connectToClassicBTHand();
             }
         });
+        if(!mRunTrainingBool) {
+            connectToClassicBTHand();
+            Toast.makeText(this, "Attempting Bluetooth Connection to hand", Toast.LENGTH_SHORT).show();
+        }
         mMediaBeep = MediaPlayer.create(this, R.raw.beep_01a);
     }
 
@@ -324,7 +333,7 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
     private BluetoothSocket createBluetoothSocket(BluetoothDevice device) throws IOException {
         if(Build.VERSION.SDK_INT >= 10){
             try {
-                final Method m = device.getClass().getMethod("createInsecureRfcommSocketToServiceRecord", new Class[] { UUID.class });
+                final Method m = device.getClass().getMethod("createInsecureRfcommSocketToServiceRecord", UUID.class);
                 return (BluetoothSocket) m.invoke(device, MY_UUID);
             } catch (Exception e) {
                 Log.e(TAG, "Could not create Insecure RFComm Connection",e);
@@ -336,11 +345,6 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
     public String getTimeStamp() {
         return new SimpleDateFormat("yyyyMMdd_HH.mm.ss").format(new Date());
     }
-
-    private boolean fileSaveInitialized = false;
-    private CSVWriter csvWriter;
-    private File file;
-    private File root;
 
     /**
      * @param terminate - if True, terminates CSVWriter Instance
@@ -360,7 +364,7 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
      * @throws IOException bc
      */
     public void saveDataFile() throws IOException {
-        root = Environment.getExternalStorageDirectory();
+        File root = Environment.getExternalStorageDirectory();
         if(mRunTrainingBool) {
             fileTimeStamp = "EMG_TrainingData_" + getTimeStamp();
         } else {
@@ -375,6 +379,7 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
             }
             dir.mkdirs();
             file = new File(dir, fileTimeStamp + ".csv");
+            if(mRunTrainingBool) trainingDataFile = file;
             if (file.exists() && !file.isDirectory()) {
                 Log.d(TAG, "File " + file.toString() + " already exists - appending data");
                 FileWriter fileWriter = new FileWriter(file, true);
@@ -606,10 +611,8 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
         }
     }
 
-    // Classification
-    private double[] yfitarray = new double[5];
-
     private class DataChannel {
+
         boolean chEnabled;
         byte[] characteristicDataPacketBytes;
         short packetCounter;
@@ -621,12 +624,15 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
     DataChannel mCh1 = new DataChannel();
     DataChannel mCh2 = new DataChannel();
     DataChannel mCh3 = new DataChannel();
-
+    //Counter for total number of packets recieved (for each ch)
     private int mTotalPacketCount = -1;
+
+    // Classification
+    private double[] yfitarray = new double[5];
 
     @Override
     public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
-        //TODO: ADD BATTERY MEASURE CAPABILITY IN FIRMWARE: (ble_ADC)
+        //TODO: ADD BATTERY MEASURE CAPABILITY IN FIRMWARE: FOR NEW NRF52 with BATT. MANAGEMENT
         if (AppConstant.CHAR_EEG_CH1_SIGNAL.equals(characteristic.getUuid())) {
             mCh1.characteristicDataPacketBytes = characteristic.getValue();
             if (!mCh1.chEnabled) {
@@ -704,7 +710,7 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
             }
         }
 
-        // TODO: 5/15/2017 2-Channel EEG:
+        // Done?
         if (mCh1.chEnabled && mCh2.chEnabled && mCh3.chEnabled) {
             mTotalPacketCount++;
             mEEGConnected = true;
@@ -722,74 +728,73 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
     }
 
     private void updateTrainingRoutine(int dataPoints) {
-//        double secondsElapsed = (double)dataPoints/250.0;
         if(dataPoints%250==0) {
             int second = dataPoints/250;
             //TODO: REMEMBER TO CHANGE mEMGClass
             int eventSecondCountdown = 0;
             if(second>=0 && second < 10) {
                 eventSecondCountdown = 10 - second;
-                updateTrainingPrompt("Relax Hand - Countdown to First Event: "+String.valueOf(eventSecondCountdown)+"s"+"\n Next up: Close Hand");
+                updateTrainingPrompt("Relax Hand - Countdown to First Event: "+String.valueOf(eventSecondCountdown)+"s\n Next up: Close Hand");
                 updateTrainingPromptColor(Color.GREEN);
                 mEMGClass = 0;
             } else if (second>=10 && second < 20) {
                 eventSecondCountdown = 20 - second;
-                updateTrainingPrompt("[1] Close Hand and Hold for " + String.valueOf(eventSecondCountdown)+"s");
+                updateTrainingPrompt("[1] Close Hand and Hold for " + String.valueOf(eventSecondCountdown)+"s\n Next up: Relax Hand");
                 updateTrainingPromptColor(Color.RED);
                 mEMGClass = 1;
             } else if (second>=20 && second < 30) {
                 eventSecondCountdown = 30 - second;
-                updateTrainingPrompt("[0] Relax Hand and Remain for " + String.valueOf(eventSecondCountdown)+"s");
+                updateTrainingPrompt("[0] Relax Hand and Remain for " + String.valueOf(eventSecondCountdown)+"s\n Next up: Close Pinky");
                 updateTrainingPromptColor(Color.GREEN);
                 mEMGClass = 0;
             } else if (second>=30 && second < 40) {
                 eventSecondCountdown = 40 - second;
-                updateTrainingPrompt("[7] Close Pinky and Hold for " + String.valueOf(eventSecondCountdown)+"s");
+                updateTrainingPrompt("[7] Close Pinky and Hold for " + String.valueOf(eventSecondCountdown)+"s\n Next up: Relax Hand");
                 updateTrainingPromptColor(Color.RED);
                 mEMGClass = 7;
             } else if (second>=40 && second < 50) {
                 eventSecondCountdown = 50 - second;
-                updateTrainingPrompt("[0] Relax Hand and Remain for " + String.valueOf(eventSecondCountdown)+"s");
+                updateTrainingPrompt("[0] Relax Hand and Remain for " + String.valueOf(eventSecondCountdown)+"s\n Next up: Close Ring");
                 updateTrainingPromptColor(Color.GREEN);
                 mEMGClass = 0;
             } else if (second>=50 && second < 60) {
                 eventSecondCountdown = 60 - second;
-                updateTrainingPrompt("[6] Close Ring and Hold for " + String.valueOf(eventSecondCountdown)+"s");
+                updateTrainingPrompt("[6] Close Ring and Hold for " + String.valueOf(eventSecondCountdown)+"s\n Next up: Relax Hand");
                 updateTrainingPromptColor(Color.RED);
                 mEMGClass = 6;
             } else if (second>=60 && second < 70) {
                 eventSecondCountdown = 70 - second;
-                updateTrainingPrompt("[0] Relax Hand and Remain for " + String.valueOf(eventSecondCountdown)+"s");
+                updateTrainingPrompt("[0] Relax Hand and Remain for " + String.valueOf(eventSecondCountdown)+"s\n Next up: Close Middle");
                 updateTrainingPromptColor(Color.GREEN);
                 mEMGClass = 0;
             } else if (second>=70 && second < 80) {
                 eventSecondCountdown = 80 - second;
-                updateTrainingPrompt("[5] Close Middle and Hold " + String.valueOf(eventSecondCountdown)+"s");
+                updateTrainingPrompt("[5] Close Middle and Hold " + String.valueOf(eventSecondCountdown)+"s\n Next up: Relax Hand");
                 updateTrainingPromptColor(Color.RED);
                 mEMGClass = 5;
             } else if (second>=80 && second < 90) {
                 eventSecondCountdown = 90 - second;
-                updateTrainingPrompt("[0] Relax Hand and Remain for " + String.valueOf(eventSecondCountdown)+"s");
+                updateTrainingPrompt("[0] Relax Hand and Remain for " + String.valueOf(eventSecondCountdown)+"s\n Next up: Close Index");
                 updateTrainingPromptColor(Color.GREEN);
                 mEMGClass = 0;
             } else if (second>=90 && second < 100) {
                 eventSecondCountdown = 100 - second;
-                updateTrainingPrompt("[4] Close Index and Hold " + String.valueOf(eventSecondCountdown)+"s");
+                updateTrainingPrompt("[4] Close Index and Hold " + String.valueOf(eventSecondCountdown)+"s\n Next up: Relax Hand");
                 updateTrainingPromptColor(Color.RED);
                 mEMGClass = 4;
             } else if (second>=100 && second < 110) {
                 eventSecondCountdown = 110 - second;
-                updateTrainingPrompt("[0] Relax Hand and Remain for " + String.valueOf(eventSecondCountdown)+"s");
+                updateTrainingPrompt("[0] Relax Hand and Remain for " + String.valueOf(eventSecondCountdown)+"s\n Next up: Close Thumb");
                 updateTrainingPromptColor(Color.GREEN);
                 mEMGClass = 0;
             } else if (second>=110 && second < 120) {
                 eventSecondCountdown = 120 - second;
-                updateTrainingPrompt("[3] Close Thumb and Hold " + String.valueOf(eventSecondCountdown)+"s");
+                updateTrainingPrompt("[3] Close Thumb and Hold " + String.valueOf(eventSecondCountdown)+"s\n Next up: Relax Hand");
                 updateTrainingPromptColor(Color.RED);
                 mEMGClass = 3;
             } else if (second>=120 && second < 130) {
                 eventSecondCountdown = 130 - second;
-                updateTrainingPrompt("[0] Relax Hand and Remain for " + String.valueOf(eventSecondCountdown)+"s");
+                updateTrainingPrompt("[0] Relax Hand and Remain for " + String.valueOf(eventSecondCountdown)+"s\n Next up: Done");
                 updateTrainingPromptColor(Color.GREEN);
                 mEMGClass = 0;
             } else if (second>=130) {
@@ -801,8 +806,8 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
                 disconnectAllBLE(false); // Launch filesave?
                 //TODO: Replace with internal process and extract/save features.
                 exportDataExternal();
+                readFromTrainingFile(trainingDataFile);
             }
-
             if(eventSecondCountdown==10) {
                 mMediaBeep.start();
             }
@@ -824,9 +829,7 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                if(mRunTrainingBool) {
-                    mTrainingInstructions.setVisibility(visibility);
-                }
+                mTrainingInstructions.setVisibility(visibility);
             }
         });
     }
@@ -842,6 +845,24 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
         });
     }
 
+    ClassDataAnalysis TrainingData;
+
+    public void readFromTrainingFile(File f) {
+        try {
+            CSVReader csvReader = new CSVReader(new FileReader(f),',');
+            List<String[]> strings = csvReader.readAll();
+            Log.e(TAG, "strings.length = "+String.valueOf(strings.size()));
+            TrainingData = new ClassDataAnalysis(strings);
+//            double[] trainingDataAll = ClassDataAnalysis.concatAll();
+//            if(trainingDataAll!=null) Log.e(TAG,"trainingDataAll - Size: "+String.valueOf(trainingDataAll.length));
+//            for (int i = 0; i < ; i++) {
+//
+//            }
+            
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
 
     private double bytesToDouble(byte a1, byte a2, byte a3) {
         int a = unsignedToSigned(unsignedBytesToInt(a1,a2,a3),24);
@@ -853,13 +874,18 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
     private static final double[] DEFAULT_PARAMS = {0.000150000000000000,0.0350000000000000,0.000200000000000000,
             0.000120000000000000,0.00200000000000000,0.000300000000000000,0.000250000000000000,
             0.000290000000000000,3.40000000000000e-05,0.000300000000000000,0.000700000000000000};
+    private double[] CUSTOM_PARAMS;
+    private boolean mUseCustomParams = false;
 
     private class ClassifyTask extends AsyncTask<Void, Void, Double> {
         @Override
         protected Double doInBackground(Void... voids) {
             double[] concat = Doubles.concat(mGraphAdapterCh1.classificationBuffer,mGraphAdapterCh2.classificationBuffer,mGraphAdapterCh3.classificationBuffer);
-//            return jClassify(concat, mLastYValue);
-            return jClassifyWithParams(concat, DEFAULT_PARAMS, mLastYValue);
+            if(mUseCustomParams && CUSTOM_PARAMS!=null) {
+                return jClassifyWithParams(concat, CUSTOM_PARAMS, mLastYValue);
+            } else {
+                return jClassifyWithParams(concat, DEFAULT_PARAMS, mLastYValue);
+            }
         }
 
         @Override
@@ -888,7 +914,7 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
                     mYfitTextView.setText(s);
                 }
             });
-            // TODO: 4/27/2017 CONDITION :: CONTROL WHEELCHAIR
+            // For Controlling Hand. Some commands have to be altered because the classes don't match the commands.
             if(mConnectedThread!=null) {
                 if(Y!=0) {
                     int command;
@@ -959,7 +985,6 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
     @Override
     public void onReadRemoteRssi(BluetoothGatt gatt, int rssi, int status) {
         uiRssiUpdate(rssi);
-        String lastRssi = String.valueOf(rssi) + "db";
     }
 
     @Override
@@ -1011,7 +1036,6 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
                         mDataRate.setText("0 Hz");
                     }
                 });
-                //TODO: ATTEMPT TO RECONNECT:
                 updateConnectionState(getString(R.string.disconnected));
                 stopMonitoringRssiValue();
                 invalidateOptionsMenu();
@@ -1121,72 +1145,11 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
         }
     }
 
-    private class ConnectedThread extends Thread {
-        private final InputStream mmInStream;
-        private final OutputStream mmOutStream;
-
-        public ConnectedThread(BluetoothSocket socket) {
-            InputStream tmpIn = null;
-            OutputStream tmpOut = null;
-
-            // Get the input and output streams, using temp objects because
-            // member streams are final
-            try {
-                tmpIn = socket.getInputStream();
-                tmpOut = socket.getOutputStream();
-            } catch (IOException e) { }
-
-            mmInStream = tmpIn;
-            mmOutStream = tmpOut;
-        }
-
-        public void run() {
-            byte[] buffer = new byte[256];  // buffer store for the stream
-            int bytes; // bytes returned from read()
-
-            // Keep listening to the InputStream until an exception occurs
-            while (true) {
-                try {
-                    // Read from the InputStream
-                    bytes = mmInStream.read(buffer);        // Get number of bytes and message in "buffer"
-                    mHandler.obtainMessage(RECIEVE_MESSAGE, bytes, -1, buffer).sendToTarget();     // Send to message queue Handler
-                } catch (IOException e) {
-                    break;
-                }
-            }
-        }
-
-        /* Call this from the main activity to send data to the remote device */
-        public void write(String message) {
-            Log.d(TAG, "...Data to send: " + message + "...");
-            byte[] msgBuffer = message.getBytes();
-            try {
-                mmOutStream.write(msgBuffer);
-            } catch (IOException e) {
-                Log.d(TAG, "...Error data send: " + e.getMessage() + "...");
-            }
-        }
-
-        public void write(int message) {
-            Log.d(TAG, "...Data to send: " + String.valueOf(message) + "...");
-            byte[] msgBuffer = ByteBuffer.allocate(4).putInt(message).array();
-            try {
-                mmOutStream.write(msgBuffer);
-            } catch (IOException e) {
-                Log.d(TAG, "...Error data send: " + e.getMessage() + "...");
-            }
-        }
-    }
-
     private int unsignedToSigned(int unsigned, int size) {
         if ((unsigned & (1 << size - 1)) != 0) {
             unsigned = -1 * ((1 << size - 1) - (unsigned & ((1 << size - 1) - 1)));
         }
         return unsigned;
-    }
-
-    private int unsignedBytesToInt(byte b0, byte b1) {
-        return (unsignedByteToInt(b0) + (unsignedByteToInt(b1) << 8));
     }
 
     private int unsignedBytesToInt(byte b0, byte b1, byte b2) {
