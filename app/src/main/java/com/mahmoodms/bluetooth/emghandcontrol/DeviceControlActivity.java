@@ -166,10 +166,10 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
         mTrainingInstructions = (TextView) findViewById(R.id.trainingInstructions);
         mYfitTextView = (TextView) findViewById(R.id.classifierOutput);
         if (mRunTrainingBool) {
-            mTrainingInstructions.setVisibility(View.VISIBLE);
+            updateTrainingView(View.VISIBLE);
             updateTrainingPrompt("BEGINNING TRAINING...");
         } else {
-            mTrainingInstructions.setVisibility(View.GONE);
+            updateTrainingView(View.GONE);
         }
         //Initialize Bluetooth
         ActionBar ab = getActionBar();
@@ -198,7 +198,6 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
 
         btAdapter = BluetoothAdapter.getDefaultAdapter();       // get Bluetooth adapter
         checkBTState();
-
         // Initialize our XYPlot reference:
         mGraphAdapterCh1 = new GraphAdapter(1000, "EMG Data Ch 1", false, false, Color.BLUE, 750); //Color.parseColor("#19B52C") also, RED, BLUE, etc.
         mGraphAdapterCh2 = new GraphAdapter(1000, "EMG Data Ch 2", false, false, Color.RED, 750); //Color.parseColor("#19B52C") also, RED, BLUE, etc.
@@ -279,6 +278,22 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
         mMediaBeep = MediaPlayer.create(this, R.raw.beep_01a);
     }
 
+    private void exportDataExternal() {
+        try {
+            saveDataFile(true);
+        } catch (IOException e) {
+            Log.e(TAG, "IOException in saveDataFile");
+            e.printStackTrace();
+        }
+        Uri uii;
+        uii = Uri.fromFile(file);
+        Intent exportData = new Intent(Intent.ACTION_SEND);
+        exportData.putExtra(Intent.EXTRA_SUBJECT, "data.csv");
+        exportData.putExtra(Intent.EXTRA_STREAM, uii);
+        exportData.setType("text/html");
+        startActivity(exportData);
+    }
+
     public void connectToClassicBTHand() {
         BluetoothDevice device = btAdapter.getRemoteDevice(address);
         try {
@@ -346,9 +361,18 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
      */
     public void saveDataFile() throws IOException {
         root = Environment.getExternalStorageDirectory();
-        fileTimeStamp = "EMG_" + getTimeStamp();
+        if(mRunTrainingBool) {
+            fileTimeStamp = "EMG_TrainingData_" + getTimeStamp();
+        } else {
+            fileTimeStamp = "EMG_" + getTimeStamp();
+        }
         if (root.canWrite()) {
-            File dir = new File(root.getAbsolutePath() + "/EMGData");
+            File dir;
+            if(mRunTrainingBool) {
+                dir = new File(root.getAbsolutePath()+"/EMGTrainingData");
+            } else {
+                dir = new File(root.getAbsolutePath() + "/EMGData");
+            }
             dir.mkdirs();
             file = new File(dir, fileTimeStamp + ".csv");
             if (file.exists() && !file.isDirectory()) {
@@ -444,6 +468,16 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
                 btSocket.close();
             } catch (IOException e2) {
                 Log.e(TAG, "In onPause() and failed to close socket." + e2.getMessage() + ".");
+            }
+        }
+    }
+
+    private void disconnectAllBLE(boolean mainThread) {
+        if (mBluetoothLe != null) {
+            for (BluetoothGatt bluetoothGatt : mBluetoothGattArray) {
+                mBluetoothLe.disconnect(bluetoothGatt);
+                mConnected = false;
+                if(mainThread) resetMenuBar();
             }
         }
     }
@@ -572,10 +606,6 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
         }
     }
 
-    //Training;
-    private int mAlertBeepCounter = 1;
-    private int mAlertBeepCounterSwitch = 1;
-    private int mClassifierCounter = 0;
     // Classification
     private double[] yfitarray = new double[5];
 
@@ -615,8 +645,8 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
                 mCh1.packetCounter++;
                 if(mCh1.packetCounter==10) { //every 60 dp (~240 ms)
                     for (int i = 0; i < mCh1.dataBuffer.length/3; i++) {
-                        mGraphAdapterCh1.addDataPoint(bytesToDouble(mCh1.dataBuffer[3*i], mCh1.dataBuffer[3*i+1], mCh1.dataBuffer[3*i+2]),mCh1.totalDataPointsReceived-mCh1.dataBuffer.length+i);
-                        if(mRunTrainingBool) updateTrainingRoutine(mCh1.totalDataPointsReceived-mCh1.dataBuffer.length+i);
+                        mGraphAdapterCh1.addDataPoint(bytesToDouble(mCh1.dataBuffer[3*i], mCh1.dataBuffer[3*i+1], mCh1.dataBuffer[3*i+2]),mCh1.totalDataPointsReceived-mCh1.dataBuffer.length/3+i);
+                        if(mRunTrainingBool) updateTrainingRoutine(mCh1.totalDataPointsReceived-mCh1.dataBuffer.length/3+i);
                     }
                     mCh1.dataBuffer = null;
                     mCh1.packetCounter=0;
@@ -632,20 +662,18 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
             int byteLength = mCh2.characteristicDataPacketBytes.length;
             getDataRateBytes(byteLength);
             if(mEEGConnected) {
-                if(mCh2.dataBuffer !=null) {
-                    //concatenate
+                if(mCh2.dataBuffer !=null) { //concatenate
                     mCh2.dataBuffer = Bytes.concat(mCh2.dataBuffer, mCh2.characteristicDataPacketBytes);
-                } else {
-                    //Init:
+                } else { //Init:
                     mCh2.dataBuffer = mCh2.characteristicDataPacketBytes;
                 }
                 mCh2.totalDataPointsReceived+=mCh2.characteristicDataPacketBytes.length/3;
                 mCh2.packetCounter++;
                 if(mCh2.packetCounter==10) {
                     for (int i = 0; i < mCh2.dataBuffer.length/3; i++) {
-                        mGraphAdapterCh2.addDataPoint(bytesToDouble(mCh2.dataBuffer[3*i], mCh2.dataBuffer[3*i+1], mCh2.dataBuffer[3*i+2]),mCh2.totalDataPointsReceived-mCh2.dataBuffer.length+i);
+                        mGraphAdapterCh2.addDataPoint(bytesToDouble(mCh2.dataBuffer[3*i], mCh2.dataBuffer[3*i+1], mCh2.dataBuffer[3*i+2]),mCh2.totalDataPointsReceived-mCh2.dataBuffer.length/3+i);
                     }
-                    mCh2.dataBuffer =null;
+                    mCh2.dataBuffer = null;
                     mCh2.packetCounter=0;
                 }
             }
@@ -659,20 +687,18 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
             int byteLength = mCh3.characteristicDataPacketBytes.length;
             getDataRateBytes(byteLength);
             if(mEEGConnected) {
-                if(mCh3.dataBuffer!=null) {
-                    //concatenate
+                if(mCh3.dataBuffer!=null) { //concatenate
                     mCh3.dataBuffer = Bytes.concat(mCh3.dataBuffer, mCh3.characteristicDataPacketBytes);
-                } else {
-                    //Init:
+                } else { //Init:
                     mCh3.dataBuffer = mCh3.characteristicDataPacketBytes;
                 }
                 mCh3.totalDataPointsReceived+=mCh3.characteristicDataPacketBytes.length/3;
                 mCh3.packetCounter++;
                 if(mCh3.packetCounter==10) {
                     for (int i = 0; i < mCh3.dataBuffer.length/3; i++) {
-                        mGraphAdapterCh3.addDataPoint(bytesToDouble(mCh3.dataBuffer[3*i], mCh3.dataBuffer[3*i+1], mCh3.dataBuffer[3*i+2]),mCh3.totalDataPointsReceived-mCh3.dataBuffer.length+i);
+                        mGraphAdapterCh3.addDataPoint(bytesToDouble(mCh3.dataBuffer[3*i], mCh3.dataBuffer[3*i+1], mCh3.dataBuffer[3*i+2]),mCh3.totalDataPointsReceived-mCh3.dataBuffer.length/3+i);
                     }
-                    mCh3.dataBuffer=null;
+                    mCh3.dataBuffer = null;
                     mCh3.packetCounter=0;
                 }
             }
@@ -703,9 +729,6 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
             int eventSecondCountdown = 0;
             if(second>=0 && second < 10) {
                 eventSecondCountdown = 10 - second;
-//                if((10-second)==9) {
-//                    mMediaBeep.start();
-//                }
                 updateTrainingPrompt("Relax Hand - Countdown to First Event: "+String.valueOf(eventSecondCountdown)+"s"+"\n Next up: Close Hand");
                 updateTrainingPromptColor(Color.GREEN);
                 mEMGClass = 0;
@@ -761,7 +784,7 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
                 mEMGClass = 0;
             } else if (second>=110 && second < 120) {
                 eventSecondCountdown = 120 - second;
-                updateTrainingPrompt("[3] Close Index and Hold " + String.valueOf(eventSecondCountdown)+"s");
+                updateTrainingPrompt("[3] Close Thumb and Hold " + String.valueOf(eventSecondCountdown)+"s");
                 updateTrainingPromptColor(Color.RED);
                 mEMGClass = 3;
             } else if (second>=120 && second < 130) {
@@ -769,15 +792,17 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
                 updateTrainingPrompt("[0] Relax Hand and Remain for " + String.valueOf(eventSecondCountdown)+"s");
                 updateTrainingPromptColor(Color.GREEN);
                 mEMGClass = 0;
-            } else if (second>=130 && second < 140) {
-//                eventSecondCountdown = 140 - second;
+            } else if (second>=130) {
+                mEMGClass = 0;
                 updateTrainingPrompt("[Training Complete!]");
                 updateTrainingPromptColor(Color.DKGRAY);
-                mEMGClass = 0;
-            } else if (second>=140) {
-                //TODO: Process and extract features.
-                mTrainingInstructions.setVisibility(View.GONE);
+                mRunTrainingBool = false;
+                updateTrainingView(View.GONE);
+                disconnectAllBLE(false); // Launch filesave?
+                //TODO: Replace with internal process and extract/save features.
+                exportDataExternal();
             }
+
             if(eventSecondCountdown==10) {
                 mMediaBeep.start();
             }
@@ -790,6 +815,17 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
             public void run() {
                 if(mRunTrainingBool) {
                     mTrainingInstructions.setText(prompt);
+                }
+            }
+        });
+    }
+
+    private void updateTrainingView(final int visibility) {
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                if(mRunTrainingBool) {
+                    mTrainingInstructions.setVisibility(visibility);
                 }
             }
         });
@@ -849,7 +885,6 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
             runOnUiThread(new Runnable() {
                 @Override
                 public void run() {
-//                    mYfitTextView.setText(String.valueOf(Y));
                     mYfitTextView.setText(s);
                 }
             });
