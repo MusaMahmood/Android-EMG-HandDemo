@@ -54,7 +54,7 @@ public class MainActivity extends Activity {
 
     public final static String INTENT_DEVICES_KEY = "DEVICES_TO_PARSE";
     public final static String INTENT_DEVICES_NAMES = "DEVICE_NAMES_TO_PARSE";
-    public final static String INTENT_DELAY_LENGTH = "DELAY_VALUE_SECONDS";
+    public final static String INTENT_TRAIN_BOOLEAN = "BOOLEAN_TO_PARSE";
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -115,34 +115,43 @@ public class MainActivity extends Activity {
             }
             }
         });
+        Button trainButton = (Button) findViewById(R.id.buttonTrainLaunch);
+        trainButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                launchDeviceControlActivity(true);
+            }
+        });
+
         connectButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                if(mDevicesSelectedCount>0) {
-                    if(mScanning) {
-                        if (mBluetoothAdapter.isEnabled())
-                            mBluetoothAdapter.getBluetoothLeScanner().stopScan(mScanCallback);
-                        mScanning = false;
-                    }
-                    //Send intent
-                    if(mDeviceAddressesMAC != null) {
-                        String[] selectedDeviceArray = mDeviceAddressesMAC.toArray(new String[0]);
-                        String[] selectedDeviceNames = mDeviceNames.toArray(new String[0]);
-//                        String[] selectedStimulusDelay = new String[1];
-//                        selectedStimulusDelay[0] = mEditDelayText.getText().toString();
-                        final Intent intent = new Intent(MainActivity.this, DeviceControlActivity.class);
-                        intent.putExtra(INTENT_DEVICES_KEY,selectedDeviceArray);
-                        intent.putExtra(INTENT_DEVICES_NAMES,selectedDeviceNames);
-//                        intent.putExtra(INTENT_DELAY_LENGTH,selectedStimulusDelay);
-                        startActivity(intent);
-                    } else {
-                        Toast.makeText(MainActivity.this, "No Devices Selected!", Toast.LENGTH_SHORT).show();
-                    }
-                }
+                launchDeviceControlActivity(false);
             }
         });
     }
 
+    private void launchDeviceControlActivity(boolean train) {
+        if(mDevicesSelectedCount>0) {
+            if(mScanning) {
+                if (mBluetoothAdapter.isEnabled())
+                    mBluetoothAdapter.getBluetoothLeScanner().stopScan(mScanCallback);
+                mScanning = false;
+            }
+            //Send intent
+            if(mDeviceAddressesMAC != null) {
+                String[] selectedDeviceArray = mDeviceAddressesMAC.toArray(new String[0]);
+                String[] selectedDeviceNames = mDeviceNames.toArray(new String[0]);
+                final Intent intent = new Intent(MainActivity.this, DeviceControlActivity.class);
+                intent.putExtra(INTENT_DEVICES_KEY,selectedDeviceArray);
+                intent.putExtra(INTENT_DEVICES_NAMES,selectedDeviceNames);
+                intent.putExtra(INTENT_TRAIN_BOOLEAN,train);
+                startActivity(intent);
+            } else {
+                Toast.makeText(MainActivity.this, "No Devices Selected!", Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
     public boolean checkPermissions() {
         int permissionCheck1 = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION);
         int permissionCheck2 = ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE);

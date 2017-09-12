@@ -47,12 +47,6 @@
             android:layout_height="wrap_content"
             android:text="DR" />
 
-        <TextView
-            android:id="@+id/eegClassTextView"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="TextView" />
-
         <Button
             android:id="@+id/buttonHandControl"
             android:layout_width="wrap_content"
@@ -68,6 +62,15 @@
             android:text="TextView" />
 
     </LinearLayout>
+
+    <TextView
+        android:id="@+id/trainingInstructions"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="TrainingInstructions"
+        android:textAlignment="center"
+        android:textSize="36sp"
+        android:visibility="visible" />
 
     <LinearLayout
         android:layout_width="match_parent"

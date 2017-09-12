@@ -38,10 +38,7 @@ import android.widget.ToggleButton;
 
 import com.androidplot.Plot;
 import com.androidplot.util.Redrawer;
-import com.androidplot.xy.SimpleXYSeries;
 import com.beele.BluetoothLe;
-import com.google.common.math.DoubleMath;
-import com.google.common.math.IntMath;
 import com.google.common.primitives.Bytes;
 import com.google.common.primitives.Doubles;
 import com.opencsv.CSVWriter;
@@ -93,8 +90,8 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
     //Layout - TextViews and Buttons
 //    private TextView mBatteryLevel;
     private TextView mDataRate;
-    private TextView mSSVEPClassTextView;
     private TextView mYfitTextView;
+    private TextView mTrainingInstructions;
     private Button mExportButton;
     private long mLastTime;
     private long mCurrentTime;
@@ -110,14 +107,12 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
     private boolean mTimerEnabled = false;
 
     //Data Variables:
-    private int batteryWarning = 20;//
     private String fileTimeStamp = "";
     private double dataRate;
     private double mEMGClass = 0;
-    private int mLastButtonPress = 0;
 
     //Classification
-    private boolean mWheelchairControl = false; //Default classifier.
+    boolean mRunTrainingBool = false;
 
     //Play Sound:
     MediaPlayer mMediaBeep;
@@ -144,12 +139,13 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
         setContentView(R.layout.activity_device_control);
         //Set orientation of device based on screen type/size:
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
-        //Recieve Intents:
+        //Recieve Intents & Parse:
         Intent intent = getIntent();
         deviceMacAddresses = intent.getStringArrayExtra(MainActivity.INTENT_DEVICES_KEY);
         String[] deviceDisplayNames = intent.getStringArrayExtra(MainActivity.INTENT_DEVICES_NAMES);
-//        String[] intentDelayLength = intent.getStringArrayExtra(MainActivity.INTENT_DELAY_LENGTH);
-//        mSecondsBetweenStimulus = Integer.valueOf(intentDelayLength[0]);
+        Boolean trainActivity = intent.getExtras().getBoolean(MainActivity.INTENT_TRAIN_BOOLEAN);
+        mRunTrainingBool = trainActivity;
+        Log.e(TAG,"Train Activity (true/false): "+String.valueOf(trainActivity));
         mDeviceName = deviceDisplayNames[0];
         mDeviceAddress = deviceMacAddresses[0];
         Log.d(TAG, "Device Names: " + Arrays.toString(deviceDisplayNames));
@@ -165,16 +161,22 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         //Set up TextViews
         mExportButton = (Button) findViewById(R.id.button_export);
-//        mBatteryLevel = (TextView) findViewById(R.id.batteryText);
         mDataRate = (TextView) findViewById(R.id.dataRate);
         mDataRate.setText("...");
+        mTrainingInstructions = (TextView) findViewById(R.id.trainingInstructions);
+        mYfitTextView = (TextView) findViewById(R.id.classifierOutput);
+        if (mRunTrainingBool) {
+            mTrainingInstructions.setVisibility(View.VISIBLE);
+            updateTrainingPrompt("BEGINNING TRAINING...");
+        } else {
+            mTrainingInstructions.setVisibility(View.GONE);
+        }
         //Initialize Bluetooth
         ActionBar ab = getActionBar();
         ab.setTitle(mDeviceName);
         ab.setSubtitle(mDeviceAddress);
         initializeBluetoothArray();
         //Bluetooth Classic Stuff:
-        mYfitTextView = (TextView) findViewById(R.id.classifierOutput);
         mHandler = new Handler() {
             public void handleMessage(android.os.Message msg) {
                 switch (msg.what) {
@@ -246,7 +248,6 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
         });
         mLastTime = System.currentTimeMillis();
         mClassTime = System.currentTimeMillis();
-        mSSVEPClassTextView = (TextView) findViewById(R.id.eegClassTextView);
         ToggleButton ch1 = (ToggleButton) findViewById(R.id.toggleButtonCh1);
         ch1.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
@@ -534,10 +535,6 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
                     //Read the device software version
                     mBluetoothLe.readCharacteristic(gatt, service.getCharacteristic(AppConstant.CHAR_SOFTWARE_REV));
                 }
-                if (AppConstant.SERVICE_WHEELCHAIR_CONTROL.equals(service.getUuid())) {
-                    mLedService = service;
-                    Log.i(TAG, "BLE Wheelchair Control Service found");
-                }
 
                 if (AppConstant.SERVICE_EEG_SIGNAL.equals(service.getUuid())) {
                     mBluetoothLe.setCharacteristicNotification(gatt, service.getCharacteristic(AppConstant.CHAR_EEG_CH1_SIGNAL), true);
@@ -562,16 +559,12 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
         }
     }
 
-
-    private int batteryLevel = -1;
-
     @Override
     public void onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
         Log.i(TAG, "onCharacteristicRead");
         if (status == BluetoothGatt.GATT_SUCCESS) {
             if (AppConstant.CHAR_BATTERY_LEVEL.equals(characteristic.getUuid())) {
-                batteryLevel = characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT8, 0);
-//                updateBatteryStatus(batteryLevel, batteryLevel + " %");
+                int batteryLevel = characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT8, 0);
                 Log.i(TAG, "Battery Level :: " + batteryLevel);
             }
         } else {
@@ -579,128 +572,129 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
         }
     }
 
-    private boolean eeg_ch1_data_on = false;
-    private boolean eeg_ch2_data_on = false;
-    private boolean eeg_ch3_data_on = false;
-    private int packetNumber = -1;
-    //Count of How Many Alerts Given To Subject
+    //Training;
     private int mAlertBeepCounter = 1;
     private int mAlertBeepCounterSwitch = 1;
     private int mClassifierCounter = 0;
-//    private int mSecondsBetweenStimulus = 0;
-    //EOG:
     // Classification
     private double[] yfitarray = new double[5];
-    byte[] dataBytesCh1;
-    byte[] dataBytesCh2;
-    byte[] dataBytesCh3;
-    private short packNumCh1 = 0;
-    private short packNumCh2 = 0;
-    private short packNumCh3 = 0;
-    private int dataNumCh1 = 0;
-    private int dataNumCh2 = 0;
-    private int dataNumCh3 = 0;
-    private byte[] bufferCh1;
-    private byte[] bufferCh2;
-    private byte[] bufferCh3;
+
+    private class DataChannel {
+        boolean chEnabled;
+        byte[] characteristicDataPacketBytes;
+        short packetCounter;
+        int totalDataPointsReceived;
+        byte[] dataBuffer;
+    }
+
+    //Refactored Data Channel Classes
+    DataChannel mCh1 = new DataChannel();
+    DataChannel mCh2 = new DataChannel();
+    DataChannel mCh3 = new DataChannel();
+
+    private int mTotalPacketCount = -1;
 
     @Override
     public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
         //TODO: ADD BATTERY MEASURE CAPABILITY IN FIRMWARE: (ble_ADC)
         if (AppConstant.CHAR_EEG_CH1_SIGNAL.equals(characteristic.getUuid())) {
-            dataBytesCh1 = characteristic.getValue();
-            if (!eeg_ch1_data_on) {
-                eeg_ch1_data_on = true;
+            mCh1.characteristicDataPacketBytes = characteristic.getValue();
+            if (!mCh1.chEnabled) {
+                mCh1.chEnabled = true;
             }
-            getDataRateBytes(dataBytesCh1.length);
+            getDataRateBytes(mCh1.characteristicDataPacketBytes.length);
             if(mEEGConnected) {
-                if(bufferCh1!=null) {
+                if(mCh1.dataBuffer !=null) {
                     //concatenate
-                    bufferCh1 = Bytes.concat(bufferCh1, dataBytesCh1);
+                    mCh1.dataBuffer = Bytes.concat(mCh1.dataBuffer, mCh1.characteristicDataPacketBytes);
                 } else {
                     //Init:
-                    bufferCh1 = dataBytesCh1;
+                    mCh1.dataBuffer = mCh1.characteristicDataPacketBytes;
                 }
-                dataNumCh1+=dataBytesCh1.length/3;
-                packNumCh1++;
-                if(packNumCh1==10) {
-                    for (int i = 0; i < bufferCh1.length/3; i++) {
-                        mGraphAdapterCh1.addDataPoint(bytesToDouble(bufferCh1[3*i], bufferCh1[3*i+1], bufferCh1[3*i+2]),dataNumCh1-bufferCh1.length+i);
+                mCh1.totalDataPointsReceived+=mCh1.characteristicDataPacketBytes.length/3;
+                mCh1.packetCounter++;
+                if(mCh1.packetCounter==10) {
+                    for (int i = 0; i < mCh1.dataBuffer.length/3; i++) {
+                        mGraphAdapterCh1.addDataPoint(bytesToDouble(mCh1.dataBuffer[3*i], mCh1.dataBuffer[3*i+1], mCh1.dataBuffer[3*i+2]),mCh1.totalDataPointsReceived-mCh1.dataBuffer.length+i);
                     }
-                    bufferCh1=null;
-                    packNumCh1=0;
+                    mCh1.dataBuffer =null;
+                    mCh1.packetCounter=0;
                 }
             }
         }
 
         if (AppConstant.CHAR_EEG_CH2_SIGNAL.equals(characteristic.getUuid())) {
-            if (!eeg_ch2_data_on) {
-                eeg_ch2_data_on = true;
+            if (!mCh2.chEnabled) {
+                mCh2.chEnabled = true;
             }
-            dataBytesCh2 = characteristic.getValue();
-            int byteLength = dataBytesCh2.length;
+            mCh2.characteristicDataPacketBytes = characteristic.getValue();
+            int byteLength = mCh2.characteristicDataPacketBytes.length;
             getDataRateBytes(byteLength);
             if(mEEGConnected) {
-                if(bufferCh2!=null) {
+                if(mCh2.dataBuffer !=null) {
                     //concatenate
-                    bufferCh2 = Bytes.concat(bufferCh2, dataBytesCh2);
+                    mCh2.dataBuffer = Bytes.concat(mCh2.dataBuffer, mCh2.characteristicDataPacketBytes);
                 } else {
                     //Init:
-                    bufferCh2 = dataBytesCh2;
+                    mCh2.dataBuffer = mCh2.characteristicDataPacketBytes;
                 }
-                dataNumCh2+=dataBytesCh2.length/3;
-                packNumCh2++;
-                if(packNumCh2==10) {
-                    for (int i = 0; i < bufferCh2.length/3; i++) {
-                        mGraphAdapterCh2.addDataPoint(bytesToDouble(bufferCh2[3*i], bufferCh2[3*i+1], bufferCh2[3*i+2]),dataNumCh2-bufferCh2.length+i);
+                mCh2.totalDataPointsReceived+=mCh2.characteristicDataPacketBytes.length/3;
+                mCh2.packetCounter++;
+                if(mCh2.packetCounter==10) {
+                    for (int i = 0; i < mCh2.dataBuffer.length/3; i++) {
+                        mGraphAdapterCh2.addDataPoint(bytesToDouble(mCh2.dataBuffer[3*i], mCh2.dataBuffer[3*i+1], mCh2.dataBuffer[3*i+2]),mCh2.totalDataPointsReceived-mCh2.dataBuffer.length+i);
                     }
-                    bufferCh2=null;
-                    packNumCh2=0;
+                    mCh2.dataBuffer =null;
+                    mCh2.packetCounter=0;
                 }
             }
         }
 
         if (AppConstant.CHAR_EEG_CH3_SIGNAL.equals(characteristic.getUuid())) {
-            if (!eeg_ch3_data_on) {
-                eeg_ch3_data_on = true;
+            if (!mCh3.chEnabled) {
+                mCh3.chEnabled = true;
             }
-            dataBytesCh3 = characteristic.getValue();
-            int byteLength = dataBytesCh3.length;
+            mCh3.characteristicDataPacketBytes = characteristic.getValue();
+            int byteLength = mCh3.characteristicDataPacketBytes.length;
             getDataRateBytes(byteLength);
             if(mEEGConnected) {
-                if(bufferCh3!=null) {
+                if(mCh3.dataBuffer!=null) {
                     //concatenate
-                    bufferCh3 = Bytes.concat(bufferCh3, dataBytesCh3);
+                    mCh3.dataBuffer = Bytes.concat(mCh3.dataBuffer, mCh3.characteristicDataPacketBytes);
                 } else {
                     //Init:
-                    bufferCh3 = dataBytesCh3;
+                    mCh3.dataBuffer = mCh3.characteristicDataPacketBytes;
                 }
-                dataNumCh3+=dataBytesCh3.length/3;
-                packNumCh3++;
-                if(packNumCh3==10) {
-                    for (int i = 0; i < bufferCh3.length/3; i++) {
-                        mGraphAdapterCh3.addDataPoint(bytesToDouble(bufferCh3[3*i], bufferCh3[3*i+1], bufferCh3[3*i+2]),dataNumCh3-bufferCh3.length+i);
+                mCh3.totalDataPointsReceived+=mCh3.characteristicDataPacketBytes.length/3;
+                mCh3.packetCounter++;
+                if(mCh3.packetCounter==10) {
+                    for (int i = 0; i < mCh3.dataBuffer.length/3; i++) {
+                        mGraphAdapterCh3.addDataPoint(bytesToDouble(mCh3.dataBuffer[3*i], mCh3.dataBuffer[3*i+1], mCh3.dataBuffer[3*i+2]),mCh3.totalDataPointsReceived-mCh3.dataBuffer.length+i);
                     }
-                    bufferCh3=null;
-                    packNumCh3=0;
+                    mCh3.dataBuffer=null;
+                    mCh3.packetCounter=0;
                 }
             }
         }
 
         // TODO: 5/15/2017 2-Channel EEG:
-        if (eeg_ch1_data_on && eeg_ch2_data_on && eeg_ch3_data_on) {
-            packetNumber++;
+        if (mCh1.chEnabled && mCh2.chEnabled && mCh3.chEnabled) {
+            mTotalPacketCount++;
             mEEGConnected = true;
-            eeg_ch1_data_on = false; eeg_ch2_data_on = false; eeg_ch3_data_on = false;
-            if (dataBytesCh3 != null && dataBytesCh2 != null && dataBytesCh1 != null)
-                writeToDisk24(dataBytesCh1,dataBytesCh2,dataBytesCh3);
+            mCh1.chEnabled = false; mCh2.chEnabled = false; mCh3.chEnabled = false;
+            if (mCh3.characteristicDataPacketBytes != null && mCh2.characteristicDataPacketBytes != null && mCh1.characteristicDataPacketBytes != null)
+                writeToDisk24(mCh1.characteristicDataPacketBytes,mCh2.characteristicDataPacketBytes,mCh3.characteristicDataPacketBytes);
 
-            if(packetNumber%10==0 && packetNumber>200) {
+            if(mTotalPacketCount %10==0 && mTotalPacketCount > 120) {
                 ClassifyTask classifyTask = new ClassifyTask();
                 Log.e(TAG,"["+String.valueOf(mNumberOfClassifierCalls+1)+"] CALLING CLASSIFIER FUNCTION!");
                 mNumberOfClassifierCalls++;
                 classifyTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
             }
+        }
+        if(mRunTrainingBool && mCh1.totalDataPointsReceived > 250*10) {
+//            updateTrainingPrompt("10s elapsed");
+//            if(mCh1.totalDataPointsReceived > 250*20) updateTrainingPrompt("20s elapsed");
         }
 //        if (mSecondsBetweenStimulus != 0) {
 //            if (Math.floor(0.004*dataNumCh1) == (mSecondsBetweenStimulus * mAlertBeepCounter)) {
@@ -756,11 +750,17 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
 //                }
 //            }
 //        }
+//
+    }
 
+    private void updateTrainingPrompt(final String prompt) {
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                mSSVEPClassTextView.setText("C:[" + mEMGClass + "]");
+                if(mRunTrainingBool) {
+                    mTrainingInstructions.setText(prompt);
+                }
+//                mSSVEPClassTextView.setText("C:[" + mEMGClass + "]");
             }
         });
     }
@@ -772,12 +772,16 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
 
     private int mNumberOfClassifierCalls = 0;
     private double mLastYValue = 0;
+    private static final double[] DEFAULT_PARAMS = {0.000150000000000000,0.0350000000000000,0.000200000000000000,
+            0.000120000000000000,0.00200000000000000,0.000300000000000000,0.000250000000000000,
+            0.000290000000000000,3.40000000000000e-05,0.000300000000000000,0.000700000000000000};
 
     private class ClassifyTask extends AsyncTask<Void, Void, Double> {
         @Override
         protected Double doInBackground(Void... voids) {
             double[] concat = Doubles.concat(mGraphAdapterCh1.classificationBuffer,mGraphAdapterCh2.classificationBuffer,mGraphAdapterCh3.classificationBuffer);
-            return jClassify(concat, mLastYValue);
+//            return jClassify(concat, mLastYValue);
+            return jClassifyWithParams(concat, DEFAULT_PARAMS, mLastYValue);
         }
 
         @Override
@@ -1128,6 +1132,7 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
 
     public native int jmainInitialization(boolean b);
 
-    public native double jClassify(double[] Array, double LastY);
+    public native double jClassify(double[] DataArray, double LastY);
+    public native double jClassifyWithParams(double[] DataArray, double[] params, double LastY);
 
 }

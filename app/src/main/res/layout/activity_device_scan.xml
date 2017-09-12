@@ -21,14 +21,14 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="Train" />
+                android:text="Train &amp; Run" />
 
             <Button
                 android:id="@+id/connectButton"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="Connect/Run" />
+                android:text="Run Default" />
         </LinearLayout>
 
         <LinearLayout

@@ -2,15 +2,15 @@
 // Academic License - for use in teaching, academic research, and meeting
 // course requirements at degree granting institutions only.  Not for
 // government, commercial, or other organizational use.
-// File: classifyArmEMG.cpp
+// File: classifyArmEMG2.cpp
 //
 // MATLAB Coder version            : 3.3
-// C/C++ source code generated on  : 11-Sep-2017 01:00:54
+// C/C++ source code generated on  : 12-Sep-2017 09:55:57
 //
 
 // Include Files
 #include "rt_nonfinite.h"
-#include "classifyArmEMG.h"
+#include "classifyArmEMG2.h"
 
 // Function Declarations
 static void b_filter(const double b[4], const double a[4], const double x[768],
@@ -398,16 +398,16 @@ static double trapz(const double x[250])
 
 //
 // , RMS, COMBMAX, sigRMSIntegral
-//    Detailed explanation goes here
-//  FILTER:
-// bandstop
 // Arguments    : const double dW[2250]
 //                double LastY
-// Return Type  : double
+//                const double PARAMS[11]
+//                double *Y
+//                double F[9]
+// Return Type  : void
 //
-double classifyArmEMG(const double dW[2250], double LastY)
+void classifyArmEMG2(const double dW[2250], double LastY, const double PARAMS[11],
+                     double *Y, double F[9])
 {
-  double Y;
   int i;
   double dWF0[2250];
   double sigRMSIntegral[3];
@@ -415,11 +415,13 @@ double classifyArmEMG(const double dW[2250], double LastY)
   double RMS[3];
   double dWF[750];
   double dv0[250];
+  double b_RMS[9];
   int ix;
-  double sigRMS[250];
-  double b_sigRMS[750];
   int ixstart;
   double mtmp;
+  double sigRMS[250];
+  double b_sigRMS[750];
+  double MAX[3];
   int b_ix;
   boolean_T exitg1;
   boolean_T THR_EXC;
@@ -436,8 +438,6 @@ double classifyArmEMG(const double dW[2250], double LastY)
   //  [b1,a1] = butter(3, Wn2, 'high');
   //  2Hz High Pass:
   //  LAST 1s / 6s
-  //  L = [];
-  //  P = [];
   for (i = 0; i < 3; i++) {
     filtfilt(*(double (*)[750])&dW[750 * i], *(double (*)[750])&dWF0[750 * i]);
     memcpy(&b_dWF0[0], &dWF0[i * 750], 750U * sizeof(double));
@@ -455,40 +455,34 @@ double classifyArmEMG(const double dW[2250], double LastY)
 
     sigRMSIntegral[i] = trapz(sigRMS);
     RMS[i] = rms(*(double (*)[250])&dWF[250 * i]);
-
-    //  count above/below threshold:
   }
 
   if (LastY == 1.0) {
-    if (sigRMSIntegral[0] > 0.035) {
+    if (sigRMSIntegral[0] > PARAMS[1]) {
+      // 0.035
       // Check for Ripple
-      Y = 1.0;
+      *Y = 1.0;
 
       // hand still closed
     } else {
-      Y = 0.0;
+      *Y = 0.0;
     }
   } else if ((LastY == 7.0) || (LastY == 4.0)) {
-    if (RMS[2] >= 0.0002) {
-      Y = LastY;
+    if (RMS[2] >= PARAMS[2]) {
+      *Y = LastY;
     } else {
-      Y = 0.0;
+      *Y = 0.0;
     }
   } else if ((LastY == 6.0) || (LastY == 5.0) || (LastY == 3.0)) {
-    if (RMS[0] >= 0.00012) {
-      Y = LastY;
+    if (RMS[0] >= PARAMS[3]) {
+      *Y = LastY;
     } else {
-      Y = 0.0;
+      *Y = 0.0;
     }
   } else {
-    Y = 0.0;
+    *Y = 0.0;
   }
 
-  //  if (B(1)&&B(2)&&B(3))
-  //      if (B(5) && B(6))
-  //          Y = 1; % Overrides
-  //      end
-  //  end
   for (i = 0; i < 3; i++) {
     ix = i * 250;
     ixstart = i * 250 + 1;
@@ -517,105 +511,93 @@ double classifyArmEMG(const double dW[2250], double LastY)
       }
     }
 
-    sigRMSIntegral[i] = mtmp;
+    MAX[i] = mtmp;
+    b_RMS[i] = RMS[i];
+    b_RMS[i + 3] = MAX[i];
+    b_RMS[i + 6] = sigRMSIntegral[i];
   }
 
-  if ((sigRMSIntegral[0] > 0.002) && (sigRMSIntegral[1] > 0.002) &&
-      (sigRMSIntegral[2] > 0.002)) {
-    Y = 1.0;
+  memcpy(&F[0], &b_RMS[0], 9U * sizeof(double));
+
+  // Analysis:
+  // +/- 2E-3
+  if ((MAX[0] > PARAMS[4]) && (MAX[1] > PARAMS[4]) && (MAX[2] > PARAMS[4])) {
+    *Y = 1.0;
   }
 
-  //  AT this point, y is either 0 or 1 (open or closed)
-  // Thresholds for RMS Integral
-  //  TH_RMS_0 = 0.065;
-  //  SUMS = sum(sigRMSIntegral);
-  //  DETECT = SUMS > TH_RMS_0; % BASELINE NOISE LEVEL OF "SUMS"
-  //  MAX_TOTAL = sum(COMBMAX);
-  //  COMBMIN = min(dWF);
-  //  V = COMBMAX - COMBMIN;
-  //  B7_0 = RMS(3) > 0.85E-3 && (RMS(1) < 0.5E-3) && (RMS(2) < 0.5E-3) && COMBMAX(3)>0.0025; 
-  //  B6_0 = RMS(3) > 0.33E-3 && (RMS(1)/RMS(3) > 0.59);
-  //  B5_3 = RMS(2) > 0.22E-3;
-  //  B4_0 = RMS(3) > 0.4E-3 && (RMS(2)/RMS(3) < 0.25);
-  //  % NEW
-  if ((RMS[0] > 0.00015) || (RMS[1] > 0.00015) || (RMS[2] > 0.00015)) {
+  //  1. Set minimum threshold for activity:
+  // 1.5E-4;
+  //  2. Is that threshold exceeded?
+  if ((RMS[0] > PARAMS[0]) || (RMS[1] > PARAMS[0]) || (RMS[2] > PARAMS[0])) {
     THR_EXC = true;
   } else {
     THR_EXC = false;
   }
 
-  if ((RMS[2] > RMS[0]) && (RMS[2] > RMS[1]) && (RMS[2] > 0.0003)) {
+  //  3. checks to see if rms(ch3) > ch2 and ch1; also checks RMS(ch3) > 3E-4
+  if ((RMS[2] > RMS[0]) && (RMS[2] > RMS[1]) && (RMS[2] > PARAMS[5])) {
     B7_4_C1 = true;
   } else {
     B7_4_C1 = false;
   }
 
+  //  4. a large gap between rms(ch3) and rms(ch1) means it is pinky
+  //  5. ch1>3>2 ? 6
   if ((RMS[0] > RMS[2]) && (RMS[2] > RMS[1])) {
     B6 = true;
   } else {
     B6 = false;
   }
 
-  if ((RMS[0] > RMS[1]) && (RMS[1] > RMS[2]) && (RMS[0] - RMS[2] < 0.00029)) {
+  //  6. ch1>2>3 with a small gap between 1 and 3 ? 5
+  if ((RMS[0] > RMS[1]) && (RMS[1] > RMS[2]) && (RMS[0] - RMS[2] < PARAMS[7])) {
     B5 = true;
   } else {
     B5 = false;
   }
 
-  if ((RMS[0] - RMS[1] < 3.4E-5) && (RMS[0] < 0.0003)) {
+  //  7. small gap between 1 and 2, RMS(1) is < 0.3mV
+  if ((RMS[0] - RMS[1] < PARAMS[8]) && (RMS[0] < PARAMS[9])) {
     B4 = true;
   } else {
     B4 = false;
   }
 
-  if ((RMS[0] > RMS[1]) && (sigRMSIntegral[2] < 0.0007)) {
+  //  8. ch1>ch2, and MAX(3) > 0.7mV
+  if ((RMS[0] > RMS[1]) && (MAX[2] < PARAMS[10])) {
     B3 = true;
   } else {
     B3 = false;
   }
 
-  if ((Y == 0.0) && THR_EXC) {
-    //  && DETECT
+  if ((*Y == 0.0) && THR_EXC) {
     // digit classification.
     if (B7_4_C1) {
-      //  B7_1(1) &&  %B7(2) && ( ~B7(6) ) &&
-      // can be 7 or 4
-      if (RMS[2] - RMS[0] > 0.00025) {
-        Y = 7.0;
+      //  can be 7 or 4
+      if (RMS[2] - RMS[0] > PARAMS[6]) {
+        *Y = 7.0;
       } else {
-        Y = 4.0;
+        *Y = 4.0;
       }
     } else if (B6) {
-      Y = 6.0;
+      *Y = 6.0;
     } else if (B5) {
-      Y = 5.0;
+      *Y = 5.0;
     } else if (B4) {
-      Y = 4.0;
+      *Y = 4.0;
     } else if (B3) {
-      Y = 3.0;
-
-      //      elseif B5_3
-      //          if (COMBMAX(2) > 0.002)
-      //              Y = 5;
-      //          else
-      //              Y = 3;
-      //          end
+      *Y = 3.0;
     } else {
-      Y = 0.0;
+      *Y = 0.0;
     }
   }
-
-  //  KNN // Other classification:
-  //  F = [ sigRMSIntegral, COMBMAX, COMBMIN, V ];
-  //  F = F(:);
-  return Y;
 }
 
 //
 // Arguments    : void
 // Return Type  : void
 //
-void classifyArmEMG_initialize()
+void classifyArmEMG2_initialize()
 {
   rt_InitInfAndNaN(8U);
 }
@@ -624,9 +606,13 @@ void classifyArmEMG_initialize()
 // Arguments    : void
 // Return Type  : void
 //
+void classifyArmEMG2_terminate()
+{
+  // (no terminate code required)
+}
 
 //
-// File trailer for classifyArmEMG.cpp
+// File trailer for classifyArmEMG2.cpp
 //
 // [EOF]
 //
