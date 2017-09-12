@@ -613,11 +613,12 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
                 }
                 mCh1.totalDataPointsReceived+=mCh1.characteristicDataPacketBytes.length/3;
                 mCh1.packetCounter++;
-                if(mCh1.packetCounter==10) {
+                if(mCh1.packetCounter==10) { //every 60 dp (~240 ms)
                     for (int i = 0; i < mCh1.dataBuffer.length/3; i++) {
                         mGraphAdapterCh1.addDataPoint(bytesToDouble(mCh1.dataBuffer[3*i], mCh1.dataBuffer[3*i+1], mCh1.dataBuffer[3*i+2]),mCh1.totalDataPointsReceived-mCh1.dataBuffer.length+i);
+                        if(mRunTrainingBool) updateTrainingRoutine(mCh1.totalDataPointsReceived-mCh1.dataBuffer.length+i);
                     }
-                    mCh1.dataBuffer =null;
+                    mCh1.dataBuffer = null;
                     mCh1.packetCounter=0;
                 }
             }
@@ -692,65 +693,95 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
                 classifyTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
             }
         }
-        if(mRunTrainingBool && mCh1.totalDataPointsReceived > 250*10) {
-//            updateTrainingPrompt("10s elapsed");
-//            if(mCh1.totalDataPointsReceived > 250*20) updateTrainingPrompt("20s elapsed");
-        }
-//        if (mSecondsBetweenStimulus != 0) {
-//            if (Math.floor(0.004*dataNumCh1) == (mSecondsBetweenStimulus * mAlertBeepCounter)) {
-//                mAlertBeepCounter++;
-//                int temp = mAlertBeepCounterSwitch;
-//                switch (temp) {
-//                    case 1:
-//                        mEMGClass = 0;
-//                        break;
-//                    case 2:
-//                        mEMGClass = 3;
-//                        break;
-//                    case 3:
-//                        mEMGClass=0;
-//                        break;
-//                    case 4:
-//                        mEMGClass=4;
-//                        break;
-//                    case 5:
-//                        mEMGClass=0;
-//                        break;
-//                    case 6:
-//                        mEMGClass=5;
-//                        break;
-//                    case 7:
-//                        mEMGClass=0;
-//                        break;
-//                    case 8:
-//                        mEMGClass=6;
-//                        break;
-//                    case 9:
-//                        mEMGClass=0;
-//                        break;
-//                    case 10:
-//                        mEMGClass=7;
-//                        break;
-//                    case 11:
-//                        mEMGClass=0;
-//                        mAlertBeepCounterSwitch = 1;
-//                        break;
-//                    default:
-//                        mEMGClass = 0;
-//                        break;
-//                }
-//                mAlertBeepCounterSwitch++;
-//                mMediaBeep.start();
-//                //For training open/close
-//                if(temp%2==0) {
-//                    mEMGClass = 2;
+    }
+
+    private void updateTrainingRoutine(int dataPoints) {
+//        double secondsElapsed = (double)dataPoints/250.0;
+        if(dataPoints%250==0) {
+            int second = dataPoints/250;
+            //TODO: REMEMBER TO CHANGE mEMGClass
+            int eventSecondCountdown = 0;
+            if(second>=0 && second < 10) {
+                eventSecondCountdown = 10 - second;
+//                if((10-second)==9) {
 //                    mMediaBeep.start();
-//                } else {
-//                    mEMGClass = 1;
 //                }
-//            }
-//        }
-//
+                updateTrainingPrompt("Relax Hand - Countdown to First Event: "+String.valueOf(eventSecondCountdown)+"s"+"\n Next up: Close Hand");
+                updateTrainingPromptColor(Color.GREEN);
+                mEMGClass = 0;
+            } else if (second>=10 && second < 20) {
+                eventSecondCountdown = 20 - second;
+                updateTrainingPrompt("[1] Close Hand and Hold for " + String.valueOf(eventSecondCountdown)+"s");
+                updateTrainingPromptColor(Color.RED);
+                mEMGClass = 1;
+            } else if (second>=20 && second < 30) {
+                eventSecondCountdown = 30 - second;
+                updateTrainingPrompt("[0] Relax Hand and Remain for " + String.valueOf(eventSecondCountdown)+"s");
+                updateTrainingPromptColor(Color.GREEN);
+                mEMGClass = 0;
+            } else if (second>=30 && second < 40) {
+                eventSecondCountdown = 40 - second;
+                updateTrainingPrompt("[7] Close Pinky and Hold for " + String.valueOf(eventSecondCountdown)+"s");
+                updateTrainingPromptColor(Color.RED);
+                mEMGClass = 7;
+            } else if (second>=40 && second < 50) {
+                eventSecondCountdown = 50 - second;
+                updateTrainingPrompt("[0] Relax Hand and Remain for " + String.valueOf(eventSecondCountdown)+"s");
+                updateTrainingPromptColor(Color.GREEN);
+                mEMGClass = 0;
+            } else if (second>=50 && second < 60) {
+                eventSecondCountdown = 60 - second;
+                updateTrainingPrompt("[6] Close Ring and Hold for " + String.valueOf(eventSecondCountdown)+"s");
+                updateTrainingPromptColor(Color.RED);
+                mEMGClass = 6;
+            } else if (second>=60 && second < 70) {
+                eventSecondCountdown = 70 - second;
+                updateTrainingPrompt("[0] Relax Hand and Remain for " + String.valueOf(eventSecondCountdown)+"s");
+                updateTrainingPromptColor(Color.GREEN);
+                mEMGClass = 0;
+            } else if (second>=70 && second < 80) {
+                eventSecondCountdown = 80 - second;
+                updateTrainingPrompt("[5] Close Middle and Hold " + String.valueOf(eventSecondCountdown)+"s");
+                updateTrainingPromptColor(Color.RED);
+                mEMGClass = 5;
+            } else if (second>=80 && second < 90) {
+                eventSecondCountdown = 90 - second;
+                updateTrainingPrompt("[0] Relax Hand and Remain for " + String.valueOf(eventSecondCountdown)+"s");
+                updateTrainingPromptColor(Color.GREEN);
+                mEMGClass = 0;
+            } else if (second>=90 && second < 100) {
+                eventSecondCountdown = 100 - second;
+                updateTrainingPrompt("[4] Close Index and Hold " + String.valueOf(eventSecondCountdown)+"s");
+                updateTrainingPromptColor(Color.RED);
+                mEMGClass = 4;
+            } else if (second>=100 && second < 110) {
+                eventSecondCountdown = 110 - second;
+                updateTrainingPrompt("[0] Relax Hand and Remain for " + String.valueOf(eventSecondCountdown)+"s");
+                updateTrainingPromptColor(Color.GREEN);
+                mEMGClass = 0;
+            } else if (second>=110 && second < 120) {
+                eventSecondCountdown = 120 - second;
+                updateTrainingPrompt("[3] Close Index and Hold " + String.valueOf(eventSecondCountdown)+"s");
+                updateTrainingPromptColor(Color.RED);
+                mEMGClass = 3;
+            } else if (second>=120 && second < 130) {
+                eventSecondCountdown = 130 - second;
+                updateTrainingPrompt("[0] Relax Hand and Remain for " + String.valueOf(eventSecondCountdown)+"s");
+                updateTrainingPromptColor(Color.GREEN);
+                mEMGClass = 0;
+            } else if (second>=130 && second < 140) {
+//                eventSecondCountdown = 140 - second;
+                updateTrainingPrompt("[Training Complete!]");
+                updateTrainingPromptColor(Color.DKGRAY);
+                mEMGClass = 0;
+            } else if (second>=140) {
+                //TODO: Process and extract features.
+                mTrainingInstructions.setVisibility(View.GONE);
+            }
+            if(eventSecondCountdown==10) {
+                mMediaBeep.start();
+            }
+        }
     }
 
     private void updateTrainingPrompt(final String prompt) {
@@ -760,10 +791,21 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
                 if(mRunTrainingBool) {
                     mTrainingInstructions.setText(prompt);
                 }
-//                mSSVEPClassTextView.setText("C:[" + mEMGClass + "]");
             }
         });
     }
+
+    private void updateTrainingPromptColor(final int color) {
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                if(mRunTrainingBool) {
+                    mTrainingInstructions.setTextColor(color);
+                }
+            }
+        });
+    }
+
 
     private double bytesToDouble(byte a1, byte a2, byte a3) {
         int a = unsignedToSigned(unsignedBytesToInt(a1,a2,a3),24);
