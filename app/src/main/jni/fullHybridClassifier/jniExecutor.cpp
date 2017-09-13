@@ -6,6 +6,7 @@
 //#include "classifySSVEP.h"
 #include "classifyArmEMG.h"
 #include "classifyArmEMG2.h"
+#include "ctrainingRoutine.h"
 /*Additional Includes*/
 #include <jni.h>
 #include <android/log.h>
@@ -39,15 +40,35 @@ Java_com_mahmoodms_bluetooth_emghandcontrol_DeviceControlActivity_jClassifyWithP
 }
 }
 
+
+
 extern "C" {
 JNIEXPORT jint JNICALL
 Java_com_mahmoodms_bluetooth_emghandcontrol_DeviceControlActivity_jmainInitialization(
         JNIEnv *env, jobject obj, jboolean terminate) {
     if (!(bool) terminate) {
         classifyArmEMG_initialize();
+        ctrainingRoutine_initialize();
         return 0;
     } else {
         return -1;
     }
+}
+}
+
+extern "C" {
+JNIEXPORT jdoubleArray JNICALL
+Java_com_mahmoodms_bluetooth_emghandcontrol_DeviceControlActivity_jTrainingRoutine(JNIEnv *env, jobject obj, jdoubleArray allData) {
+    jdouble *X = env->GetDoubleArrayElements(allData, NULL);
+    if (X==NULL) LOGE("ERROR - C_ARRAY");
+    double PARAMS[11];
+    for (int i = 0; i < 11; ++i) {
+        PARAMS[i] = 0.0;
+    }
+    //TODO: INSERT ANALYSIS FUNCTION HERE
+    ctrainingRoutine(X,PARAMS);
+    jdoubleArray mReturnArray = env->NewDoubleArray(11);
+    env->SetDoubleArrayRegion(mReturnArray, 0, 11, &PARAMS[0]);
+    return mReturnArray;
 }
 }

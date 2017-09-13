@@ -5,7 +5,7 @@
 // File: classifyArmEMG2.cpp
 //
 // MATLAB Coder version            : 3.3
-// C/C++ source code generated on  : 12-Sep-2017 09:55:57
+// C/C++ source code generated on  : 12-Sep-2017 20:33:37
 //
 
 // Include Files
@@ -434,7 +434,7 @@ void classifyArmEMG2(const double dW[2250], double LastY, const double PARAMS[11
   // classifyArmEMG
   //  Wn = [55. 65]*2/Fs;
   //  [b,a] = butter(3, Wn, 'stop');
-  //  Wn2 = (1)*2/Fs; %high pass:
+  //  Wn2 = (2)*2/Fs; %high pass:
   //  [b1,a1] = butter(3, Wn2, 'high');
   //  2Hz High Pass:
   //  LAST 1s / 6s
@@ -550,12 +550,13 @@ void classifyArmEMG2(const double dW[2250], double LastY, const double PARAMS[11
   }
 
   //  6. ch1>2>3 with a small gap between 1 and 3 ? 5
-  if ((RMS[0] > RMS[1]) && (RMS[1] > RMS[2]) && (RMS[0] - RMS[2] < PARAMS[7])) {
+  if ((RMS[1] > RMS[2]) && (RMS[0] - RMS[2] < PARAMS[7])) {
     B5 = true;
   } else {
     B5 = false;
   }
 
+  // RMS(1) > RMS(2) &&
   //  7. small gap between 1 and 2, RMS(1) is < 0.3mV
   if ((RMS[0] - RMS[1] < PARAMS[8]) && (RMS[0] < PARAMS[9])) {
     B4 = true;

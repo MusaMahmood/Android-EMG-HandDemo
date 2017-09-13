@@ -135,7 +135,7 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
     //File Save Variables:
     private boolean fileSaveInitialized = false;
     private CSVWriter csvWriter;
-    private File file;
+    private File mFile;
     private File trainingDataFile;
 
     @Override
@@ -242,7 +242,7 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
                     e.printStackTrace();
                 }
                 Uri uii;
-                uii = Uri.fromFile(file);
+                uii = Uri.fromFile(mFile);
                 Intent exportData = new Intent(Intent.ACTION_SEND);
                 exportData.putExtra(Intent.EXTRA_SUBJECT, "data.csv");
                 exportData.putExtra(Intent.EXTRA_STREAM, uii);
@@ -295,7 +295,7 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
             e.printStackTrace();
         }
         Uri uii;
-        uii = Uri.fromFile(file);
+        uii = Uri.fromFile(mFile);
         Intent exportData = new Intent(Intent.ACTION_SEND);
         exportData.putExtra(Intent.EXTRA_SUBJECT, "data.csv");
         exportData.putExtra(Intent.EXTRA_STREAM, uii);
@@ -358,6 +358,32 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
         }
     }
 
+    private File mFileClassificationParams;
+    private FileWriter mFileWriterClassificationParams;
+    public void openParamDataFile() {
+        File root = Environment.getExternalStorageDirectory();
+        if(root.canWrite()) {
+            File dir = new File(root.getAbsolutePath()+"/EMG_Training_Params");
+            dir.mkdirs();
+            mFileClassificationParams = new File(dir, "params.csv");
+            if(mFileClassificationParams.exists() && !mFileClassificationParams.isDirectory()) {
+                try {
+                    mFileWriterClassificationParams = new FileWriter(mFileClassificationParams, false);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                //DO NOT APPEND DATA.
+            } else {
+                try {
+                    mFileWriterClassificationParams = new FileWriter(mFileClassificationParams);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+            //TODO READ using FileReader; SAVE using FileWriter
+        }
+    }
+
     /**
      * Initializes CSVWriter For Saving Data.
      *
@@ -378,14 +404,14 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
                 dir = new File(root.getAbsolutePath() + "/EMGData");
             }
             dir.mkdirs();
-            file = new File(dir, fileTimeStamp + ".csv");
-            if(mRunTrainingBool) trainingDataFile = file;
-            if (file.exists() && !file.isDirectory()) {
-                Log.d(TAG, "File " + file.toString() + " already exists - appending data");
-                FileWriter fileWriter = new FileWriter(file, true);
+            mFile = new File(dir, fileTimeStamp + ".csv");
+            if(mRunTrainingBool) trainingDataFile = mFile;
+            if (mFile.exists() && !mFile.isDirectory()) {
+                Log.d(TAG, "File " + mFile.toString() + " already exists - appending data");
+                FileWriter fileWriter = new FileWriter(mFile, true);
                 csvWriter = new CSVWriter(fileWriter);
             } else {
-                csvWriter = new CSVWriter(new FileWriter(file));
+                csvWriter = new CSVWriter(new FileWriter(mFile));
             }
             fileSaveInitialized = true;
         }
@@ -410,6 +436,7 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
         if (!fileSaveInitialized) {
             try {
                 saveDataFile();
+                openParamDataFile();
             } catch (IOException ex) {
                 Log.e("IOEXCEPTION:", ex.toString());
             }
@@ -803,9 +830,9 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
                 updateTrainingPromptColor(Color.DKGRAY);
                 mRunTrainingBool = false;
                 updateTrainingView(View.GONE);
-                disconnectAllBLE(false); // Launch filesave?
+//                disconnectAllBLE(false); // Launch filesave?
+//                exportDataExternal();
                 //TODO: Replace with internal process and extract/save features.
-                exportDataExternal();
                 readFromTrainingFile(trainingDataFile);
             }
             if(eventSecondCountdown==10) {
@@ -853,12 +880,25 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
             List<String[]> strings = csvReader.readAll();
             Log.e(TAG, "strings.length = "+String.valueOf(strings.size()));
             TrainingData = new ClassDataAnalysis(strings);
-//            double[] trainingDataAll = ClassDataAnalysis.concatAll();
-//            if(trainingDataAll!=null) Log.e(TAG,"trainingDataAll - Size: "+String.valueOf(trainingDataAll.length));
-//            for (int i = 0; i < ; i++) {
-//
-//            }
-            
+            double[] trainingDataAll = ClassDataAnalysis.concatAll();
+            double[] trainingDataSelect = new double[120000];
+            if (trainingDataAll!=null) {
+                System.arraycopy(trainingDataAll, 0, trainingDataSelect, 0, 120000);
+                CUSTOM_PARAMS = jTrainingRoutine( trainingDataSelect );
+                mUseCustomParams = true;
+                Log.e(TAG, "CUSTOM_PARAMS returned val: "+Arrays.toString(CUSTOM_PARAMS));
+            } else {
+                Log.e(TAG,"Error! trainingDataAll is null!");
+            }
+            //Write to Disk?
+            if(mFileWriterClassificationParams!=null) {
+                CSVWriter csvWriter = new CSVWriter(mFileWriterClassificationParams);
+                String[] strings1 = new String[CUSTOM_PARAMS.length];
+                for (int i = 0; i < strings1.length; i++) {
+                    strings1[i] = CUSTOM_PARAMS[i] + "";
+                }
+                csvWriter.writeNext(strings1, false);
+            }
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -875,7 +915,7 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
             0.000120000000000000,0.00200000000000000,0.000300000000000000,0.000250000000000000,
             0.000290000000000000,3.40000000000000e-05,0.000300000000000000,0.000700000000000000};
     private double[] CUSTOM_PARAMS;
-    private boolean mUseCustomParams = false;
+    private boolean mUseCustomParams = false; //TODO: Change this!
 
     private class ClassifyTask extends AsyncTask<Void, Void, Double> {
         @Override
@@ -1173,6 +1213,13 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
     public native int jmainInitialization(boolean b);
 
     public native double jClassify(double[] DataArray, double LastY);
+
     public native double jClassifyWithParams(double[] DataArray, double[] params, double LastY);
 
+    /**
+     *
+     * @param DataArray 4 x :32500(:) array with class tags
+     * @return PARAMS
+     */
+    public native double[] jTrainingRoutine(double[] DataArray);
 }
