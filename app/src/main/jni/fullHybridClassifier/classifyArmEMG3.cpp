@@ -466,8 +466,7 @@ edges_size[2], double N_data[], int N_size[1]) {
 //                const double tY[496]
 // Return Type  : double
 //
-static double knn(const double tsX[9], const double tX[4464], const double tY
-[496]) {
+static double knn(const double tsX[9], const double tX[4464], const double tY[496]) {
     int idx[496];
     int k;
     double Uc_data[496];
@@ -507,7 +506,8 @@ static double knn(const double tsX[9], const double tX[4464], const double tY
                 exitg1 = 1;
             } else {
 //                if ((std::abs(x - Uc_data[k]) < eps(x / 2.0)) || (rtIsInf(Uc_data[k]) && rtIsInf(x) && ((Uc_data[k] > 0.0) == (x > 0.0)))) {
-                if ((fabs(x - Uc_data[k]) < eps(x / 2.0)) || (rtIsInf(Uc_data[k]) && rtIsInf(x) && ((Uc_data[k] > 0.0) == (x > 0.0)))) {
+                if ((fabs(x - Uc_data[k]) < eps(x / 2.0)) ||
+                    (rtIsInf(Uc_data[k]) && rtIsInf(x) && ((Uc_data[k] > 0.0) == (x > 0.0)))) {
                     p = true;
                 } else {
                     p = false;
