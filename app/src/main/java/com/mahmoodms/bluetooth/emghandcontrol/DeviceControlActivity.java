@@ -751,10 +751,12 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
                 writeToDisk24(mCh1.characteristicDataPacketBytes, mCh2.characteristicDataPacketBytes, mCh3.characteristicDataPacketBytes);
 
             if (mTotalPacketCount % 10 == 0 && mTotalPacketCount > 120) {
-                ClassifyTask classifyTask = new ClassifyTask();
+                Thread t = new Thread(mRunnableClassifyTaskThread);
+//                ClassifyTask classifyTask = new ClassifyTask();
                 Log.e(TAG, "[" + String.valueOf(mNumberOfClassifierCalls + 1) + "] CALLING CLASSIFIER FUNCTION!");
                 mNumberOfClassifierCalls++;
-                classifyTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+//                classifyTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+                t.start();
             }
         }
     }
@@ -835,10 +837,11 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
                 updateTrainingPromptColor(Color.DKGRAY);
                 mRunTrainingBool = false;
                 updateTrainingView(View.GONE);
-//                disconnectAllBLE(false); // Launch filesave?
-//                exportDataExternal();
                 //TODO: Replace with internal process and extract/save features.
-                readFromTrainingFile(trainingDataFile);
+//                readFromTrainingFile(trainingDataFile);
+                TrainTask trainTask = new TrainTask();
+                Log.e(TAG, "CALLING TRAINING FUNCTION - ASYNCTASK!");
+                trainTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
             }
             if (eventSecondCountdown == 10) {
                 mMediaBeep.start();
@@ -890,25 +893,24 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
             double[] trainingDataSelect = new double[120000];
             if (trainingDataAll != null) {
                 System.arraycopy(trainingDataAll, 0, trainingDataSelect, 0, 120000);
-                CUSTOM_PARAMS = jTrainingRoutine(trainingDataSelect);
-                CUSTOM_KNN_PARAMS = jTrainingRoutineKNN(trainingDataSelect);
-                double[] numbers = new double[496];
-                System.arraycopy(CUSTOM_KNN_PARAMS, 4464, numbers, 0, 496);
-                mUseCustomParams = true;
-                Log.e(TAG, "CUSTOM_PARAMS returned val: " + Arrays.toString(CUSTOM_PARAMS));
-                Log.e(TAG, "CUSTOM_PARAMS2 returned val: " + Arrays.toString(numbers));
-                Log.e(TAG, "CUSTOM_PARAMS2 len: " + String.valueOf(CUSTOM_KNN_PARAMS.length));
+//                CUSTOM_KNN_PARAMS = jTrainingRoutineKNN(trainingDataSelect);
+                CUSTOM_KNN_PARAMS = jTrainingRoutineKNN2(trainingDataSelect);
             } else {
                 Log.e(TAG, "Error! trainingDataAll is null!");
             }
             //Write to Disk?
             if (mKNNcsvWriter != null) {
                 String[] strings1 = new String[1];
-                for (int i = 0; i < CUSTOM_KNN_PARAMS.length; i++) {
-                    strings1[0] = CUSTOM_KNN_PARAMS[i] + "";
-                    mKNNcsvWriter.writeNext(strings1, false);
+                for (double p: CUSTOM_KNN_PARAMS) {
+                    strings1[0] = p+"";
+                    mKNNcsvWriter.writeNext(strings1,false);
                 }
             }
+//            double[] numbers = new double[496];
+//            System.arraycopy(CUSTOM_KNN_PARAMS, 4464, numbers, 0, 496);
+//            Log.e(TAG, "CUSTOM_PARAMS2 returned val: " + Arrays.toString(numbers));
+            Log.e(TAG, "CUSTOM_PARAMS2 len: " + String.valueOf(CUSTOM_KNN_PARAMS.length));
+            mUseCustomParams = true;
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -933,13 +935,39 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
 
     private boolean mUseCustomParams = false; //TODO: Change this!
 
+    private class TrainTask extends AsyncTask<Void, Void, Void> {
+        @Override
+        protected Void doInBackground(Void... voids) {
+            readFromTrainingFile(trainingDataFile);
+            return null;
+        }
+    }
+
+    Runnable mRunnableClassifyTaskThread = new Runnable() {
+        @Override
+        public void run() {
+            double Y = 0.0;
+            double[] concat = Doubles.concat(mGraphAdapterCh1.classificationBuffer, mGraphAdapterCh2.classificationBuffer, mGraphAdapterCh3.classificationBuffer);
+            if (mUseCustomParams && CUSTOM_KNN_PARAMS!=null) {
+                if(CUSTOM_KNN_PARAMS.length==4960) Y =  jClassifyUsingKNN(concat, CUSTOM_KNN_PARAMS);
+                else if (CUSTOM_KNN_PARAMS.length==9920) Y = jClassifyUsingKNNv4(concat, CUSTOM_KNN_PARAMS, 1);
+            } else {
+                Y = jClassifyUsingKNN(concat, DEFAULT_KNN_PARAMS);
+            }
+            mLastYValue = Y;
+            processClassifiedData(Y);
+        }
+    };
+
     private class ClassifyTask extends AsyncTask<Void, Void, Double> {
         @Override
         protected Double doInBackground(Void... voids) {
             double[] concat = Doubles.concat(mGraphAdapterCh1.classificationBuffer, mGraphAdapterCh2.classificationBuffer, mGraphAdapterCh3.classificationBuffer);
             if (mUseCustomParams && CUSTOM_KNN_PARAMS!=null) {
 //                return jClassifyWithParams(concat, CUSTOM_PARAMS, mLastYValue);
-                return jClassifyUsingKNN(concat, CUSTOM_KNN_PARAMS);
+                if(CUSTOM_KNN_PARAMS.length==4960) return jClassifyUsingKNN(concat, CUSTOM_KNN_PARAMS);
+                else if (CUSTOM_KNN_PARAMS.length==9920) return jClassifyUsingKNNv4(concat, CUSTOM_KNN_PARAMS, 1);
+                else return 0.0;
             } else {
 //                return jClassifyWithParams(concat, DEFAULT_PARAMS, mLastYValue);
                 return jClassifyUsingKNN(concat, DEFAULT_KNN_PARAMS);
@@ -1244,7 +1272,20 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
      */
     public native double[] jTrainingRoutine(double[] DataArray);
 
+    /**
+     *
+     * @param DataArray of size 1x120000
+     * @return double array of size 1x4960
+     */
     public native double[] jTrainingRoutineKNN(double[] DataArray);
+    /**
+     *
+     * @param DataArray of size 1x120000
+     * @return double array of size 1x9920
+     */
+    public native double[] jTrainingRoutineKNN2(double[] DataArray);
 
     public native double jClassifyUsingKNN(double[] DataArray, double[] kNNParams);
+
+    public native double jClassifyUsingKNNv4(double[] DataArray, double[] kNNParams, double knn);
 }

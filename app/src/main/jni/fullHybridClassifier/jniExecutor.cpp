@@ -7,6 +7,8 @@
 #include "classifyArmEMG2.h"
 #include "ctrainingRoutine.h"
 #include "classifyArmEMG3.h"
+#include "classifyArmEMG4.h"
+#include "ctrainingRoutineKNN2.h"
 /*Additional Includes*/
 #include <jni.h>
 #include <android/log.h>
@@ -61,14 +63,37 @@ Java_com_mahmoodms_bluetooth_emghandcontrol_DeviceControlActivity_jClassifyUsing
 }
 
 extern "C" {
+JNIEXPORT jdouble JNICALL
+/**
+ *
+ * @param env
+ * @param jobject1
+ * @param allData 750x3 vector of data
+ * @param params KNN features 1x9920
+ * @param LastY
+ * @return
+ */
+Java_com_mahmoodms_bluetooth_emghandcontrol_DeviceControlActivity_jClassifyUsingKNNv4(
+        JNIEnv *env, jobject jobject1, jdoubleArray allData, jdoubleArray params, jdouble knn) {
+    jdouble *X1 = env->GetDoubleArrayElements(allData, NULL);
+    jdouble *PARAMS = env->GetDoubleArrayElements(params, NULL);
+    if (X1 == NULL) LOGE("ERROR - C_ARRAY IS NULL");
+    return classifyArmEMG4(X1, PARAMS, knn);
+}
+}
+
+
+extern "C" {
 JNIEXPORT jint JNICALL
 Java_com_mahmoodms_bluetooth_emghandcontrol_DeviceControlActivity_jmainInitialization(
         JNIEnv *env, jobject obj, jboolean terminate) {
     if (!(bool) terminate) {
         classifyArmEMG2_initialize();
         classifyArmEMG3_initialize();
+        classifyArmEMG4_initialize();
         ctrainingRoutine_initialize();
         ctrainingRoutineKNN_initialize();
+        ctrainingRoutineKNN2_initialize();
         return 0;
     } else {
         return -1;
@@ -103,6 +128,20 @@ Java_com_mahmoodms_bluetooth_emghandcontrol_DeviceControlActivity_jTrainingRouti
     ctrainingRoutineKNN(X,KNNPARAMS);
     jdoubleArray mReturnArray = env->NewDoubleArray(4960);
     env->SetDoubleArrayRegion(mReturnArray, 0, 4960, &KNNPARAMS[0]);
+    return mReturnArray;
+}
+}
+
+extern "C" {
+JNIEXPORT jdoubleArray JNICALL
+Java_com_mahmoodms_bluetooth_emghandcontrol_DeviceControlActivity_jTrainingRoutineKNN2(JNIEnv *env, jobject obj, jdoubleArray allData) {
+    jdouble *X = env->GetDoubleArrayElements(allData, NULL);
+    if (X==NULL) LOGE("ERROR - C_ARRAY");
+    double KNNPARAMS[9920];
+    //TODO: INSERT ANALYSIS FUNCTION HERE
+    ctrainingRoutineKNN2(X,KNNPARAMS);
+    jdoubleArray mReturnArray = env->NewDoubleArray(9920);
+    env->SetDoubleArrayRegion(mReturnArray, 0, 9920, &KNNPARAMS[0]);
     return mReturnArray;
 }
 }
