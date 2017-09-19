@@ -4,7 +4,6 @@ import android.graphics.Color;
 import android.view.View;
 
 import com.androidplot.xy.BoundaryMode;
-import com.androidplot.xy.SimpleXYSeries;
 import com.androidplot.xy.XYPlot;
 import com.androidplot.xy.XYStepMode;
 
@@ -12,20 +11,17 @@ import java.text.DecimalFormat;
 
 /**
  * Created by mahmoodms on 5/15/2017.
+ *
  */
 
-public class XYPlotAdapter {
+class XYPlotAdapter {
+
     private final static String TAG = XYPlotAdapter.class.getSimpleName();
-    public int historySize;
-    public int historySeconds;
     XYPlot xyPlot = null;
-    public BoundaryMode currentXBoundaryMode;
-    public BoundaryMode currentYBoundaryMode;
 
     XYPlotAdapter(View findViewByID, boolean plotImplicitXVals, int historySize) {
         this.xyPlot = (XYPlot) findViewByID;
-        this.historySize = historySize;
-        this.historySeconds = historySize/250;
+        int historySeconds = historySize/250;
         if(plotImplicitXVals) {
             this.xyPlot.setDomainBoundaries(0, historySize, BoundaryMode.FIXED);
             this.xyPlot.setDomainStepMode(XYStepMode.INCREMENT_BY_VAL);
@@ -35,7 +31,6 @@ public class XYPlotAdapter {
             this.xyPlot.setDomainStepMode(XYStepMode.INCREMENT_BY_VAL);
             this.xyPlot.setDomainStepValue(historySeconds / 4);
         }
-        currentXBoundaryMode = BoundaryMode.FIXED;
         //Default Config:
         this.xyPlot.setRangeStepMode(XYStepMode.INCREMENT_BY_VAL);
         this.xyPlot.setDomainLabel("Time (seconds)");
@@ -60,12 +55,5 @@ public class XYPlotAdapter {
         this.xyPlot.getTitleWidget().getLabelPaint().setColor(Color.BLACK);
         this.xyPlot.setRangeBoundaries(-0.004, 0.004, BoundaryMode.AUTO);
         this.xyPlot.setRangeStep(XYStepMode.SUBDIVIDE, 5.0);
-        this.currentYBoundaryMode = BoundaryMode.AUTO;
-    }
-    
-    public void filterData() {
-        this.xyPlot.setRangeBoundaries(-2.5, 2.5, BoundaryMode.AUTO); //EMG only!
-        this.xyPlot.setRangeStepValue(1);
-        this.currentYBoundaryMode = BoundaryMode.AUTO;
     }
 }

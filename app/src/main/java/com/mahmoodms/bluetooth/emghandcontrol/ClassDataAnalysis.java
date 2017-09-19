@@ -1,7 +1,6 @@
 package com.mahmoodms.bluetooth.emghandcontrol;
 
 import android.util.Log;
-import android.widget.Toast;
 
 import com.google.common.primitives.Doubles;
 
@@ -9,14 +8,16 @@ import java.util.List;
 
 /**
  * Created by mmahmood31 on 9/12/2017.
+ * This class exists to process the read strings from a file in order to handle and produce the
+ * featureset that will be used with the classifier.
  */
 
-public class ClassDataAnalysis {
+class ClassDataAnalysis {
     private static final String TAG = ClassDataAnalysis.class.getSimpleName();
     private static double data[][];
-    public boolean ERROR = false;
+    boolean ERROR = false;
 
-    public ClassDataAnalysis(List<String[]> strings, int length) {
+    ClassDataAnalysis(List<String[]> strings, int length) {
         int stringSize = strings.size();
         data = new double[4][length];
         //Check data integrity first:
