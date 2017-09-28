@@ -924,6 +924,7 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
                     double[] trainingDataSelect = new double[120000];
                     System.arraycopy(trainingDataAll, 0, trainingDataSelect, 0, 120000);
                     CUSTOM_KNN_PARAMS = jTrainingRoutineKNN2(trainingDataSelect);
+<<<<<<< HEAD
                     //Hemanth's addition with Db
                     final AlertDialog.Builder builder = new AlertDialog.Builder(this);
                     builder.setMessage("Do you want to save this training data?");
@@ -963,6 +964,8 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
                     });
                     builder.create();
                     builder.show();
+=======
+>>>>>>> 7247b0d87b48a7bfab1f749f3efba210a04938dc
                 }
                 //Write to Disk? // dont...
                 if (mKNNcsvWriter != null) {
