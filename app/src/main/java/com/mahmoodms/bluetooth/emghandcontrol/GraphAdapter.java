@@ -4,13 +4,12 @@ import com.androidplot.xy.LineAndPointFormatter;
 import com.androidplot.xy.SimpleXYSeries;
 
 /**
- * Created by mahmoodms on 5/15/2017.
+ * Created by Musa Mahmood on 5/15/2017.
+ * This file controls the AndroidPlot graph.
  */
 
-public class GraphAdapter {
+class GraphAdapter {
     // Variables
-    private boolean filterData;
-    public int intArraySize;
     SimpleXYSeries series;
     LineAndPointFormatter lineAndPointFormatter;
     private int seriesHistoryDataPoints;
@@ -19,7 +18,7 @@ public class GraphAdapter {
     boolean plotData;
 
     // Set/Get Methods (Don't need yet)
-    public void setPlotData(boolean plotData) {
+    void setPlotData(boolean plotData) {
         this.plotData = plotData;
         if (!plotData) {
             clearPlot();
@@ -27,25 +26,19 @@ public class GraphAdapter {
     }
 
     // Constructor
-    public GraphAdapter(int seriesHistoryDataPoints, String XYSeriesTitle, boolean useImplicitXVals, boolean filterData, int lineAndPointFormatterColor, int classificationBufferSize) {
+    GraphAdapter(int seriesHistoryDataPoints, String XYSeriesTitle, boolean useImplicitXVals, int lineAndPointFormatterColor, int classificationBufferSize) {
         //default values
-        this.filterData = filterData;
         this.seriesHistoryDataPoints = seriesHistoryDataPoints;
-        this.intArraySize = 6; //24-bit default
         this.lineAndPointFormatter = new LineAndPointFormatter(lineAndPointFormatterColor, null, null, null);
         setPointWidth(5); //Def value:
-        //Initialize arrays:
-//        this.classificationBuffer = new double[seriesHistoryDataPoints];
-        // Initialize series`
         this.bufferSize = classificationBufferSize;
         this.classificationBuffer = new double[classificationBufferSize];
         this.series = new SimpleXYSeries(XYSeriesTitle);
         if(useImplicitXVals) this.series.useImplicitXVals();
-        //Don't plot data until explicitly told to do so:
-        this.plotData = false;
+        this.plotData = false; //Don't plot data until explicitly told to do so:
     }
 
-    public void setPointWidth(float width) {
+    void setPointWidth(float width) {
         this.lineAndPointFormatter.getLinePaint().setStrokeWidth(width);
     }
 
@@ -58,7 +51,7 @@ public class GraphAdapter {
         }
     }
 
-    public void addDataPoint(double data, int index) {
+    void addDataPoint(double data, int index) {
         addToBuffer(data);
         if(this.plotData) plot((double)index*0.004,data);
     }
