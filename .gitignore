@@ -36,7 +36,6 @@ local.properties
 .idea/libraries/support_annotations_23_4_0.xml
 .idea/libraries/support_v4_23_4_0.xml
 .idea/libraries/support_vector_drawable_23_4_0.xml
-.idea/misc (EGR-YEO-12's conflicted copy 2017-01-12).xml
 .idea/misc.xml
 .idea/modules.xml
 .idea/runConfigurations.xml
@@ -51,3 +50,6 @@ app/build/outputs/logs/manifest-merger-debug-report.txt
 build/generated/mockable-android-23.jar
 build/intermediates/dex-cache/cache.xml
 .idea/
+app/.externalNativeBuild/
+app/gradleBuild/
+.gradle/

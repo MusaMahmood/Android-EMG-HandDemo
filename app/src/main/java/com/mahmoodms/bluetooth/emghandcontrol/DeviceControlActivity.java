@@ -1272,7 +1272,7 @@ public class DeviceControlActivity extends Activity implements BluetoothLe.Bluet
     * Application of JNI code:
     */
     static {
-        System.loadLibrary("android-jni");
+        System.loadLibrary("emg-lib");
     }
 
     public native int jmainInitialization(boolean b);
